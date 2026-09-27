@@ -5,6 +5,7 @@ import RecordCard from './components/RecordCard';
 import CollectionMap from './components/CollectionMap';
 import {fetchElevation, fetchHeartRailsPlace,} from './api/location';
 import { loadCollectionRecords, saveCollectionRecord, removeCollectionRecord } from './api/records';
+import './App.css';
 
 import type {
   Position,
@@ -187,7 +188,7 @@ async function handleSubmit(event: FormEvent<HTMLFormElement>) {
 // ==========================================================================
   return (
     <main>
-      <h1>採集記録アプリ</h1>
+      <h1　className="app-title">採集記録アプリ</h1>
       <button type="button" onClick={signOut}>ログアウト</button>
       <h2>採集地点</h2>
       <CollectionMap
@@ -224,7 +225,7 @@ async function handleSubmit(event: FormEvent<HTMLFormElement>) {
 
 {/* 入力フォーム */}
 <form onSubmit={handleSubmit}>
-  <div>
+  <div className="form-row">
   <label htmlFor="placeName">採集地</label>
     <input
       id="placeName"
@@ -239,7 +240,7 @@ async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     />
   </div>
 
-  <div>
+  <div className="form-row">
   <label htmlFor="placeNameRomaji">採集地（ローマ字）</label>
     <input
       id="placeNameRomaji"
@@ -254,7 +255,7 @@ async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     />
   </div>
 
-  <div>
+  <div className="form-row">
     <label htmlFor="latitude">緯度</label>
     <input
       id="latitude"
@@ -266,7 +267,7 @@ async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     />
   </div>
 
-  <div>
+  <div className="form-row">
     <label htmlFor="longitude">経度</label>
     <input
       id="longitude"
@@ -278,7 +279,7 @@ async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     />
   </div>
 
-  <div>
+  <div className="form-row">
     <label htmlFor="elevation">標高</label>
     <input
       id="elevation"
@@ -292,7 +293,7 @@ async function handleSubmit(event: FormEvent<HTMLFormElement>) {
   </div>
 
 
-  <div>
+  <div className="form-row">
     <label htmlFor="date">採集日</label>
     <input
       id="date"
@@ -303,7 +304,7 @@ async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     />
   </div>
 
-  <div>
+  <div className="form-row">
     <label htmlFor="collector">採集者</label>
     <input
       id="collector"
@@ -314,7 +315,7 @@ async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     />
   </div>
 
-  <div>
+  <div className="form-row">
     <label htmlFor="collectingMethod">採集方法</label>
     <input
       id="collectingMethod"
@@ -326,7 +327,7 @@ async function handleSubmit(event: FormEvent<HTMLFormElement>) {
   </div>
 
 
-  <button type="submit" disabled={isSaving || isLoadingRecords}>
+  <button className="add-button" type="submit" disabled={isSaving || isLoadingRecords}>
     {isSaving ? '保存中…' : '記録を追加'}
   </button>
 </form>

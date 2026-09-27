@@ -40,3 +40,80 @@
 .read-the-docs {
   color: #888;
 }
+
+.app-title {
+  color: #245a42;
+  font-size: 28px;
+}
+
+.add-button {
+  padding: 10px 16px;
+  color: white;
+  background-color: #245a42;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.collection-form {
+  display: grid;
+  gap: 16px;
+  width: min(100%, 560px);
+  padding: 24px;
+  background: #fff;
+  border: 1px solid #e2e8e5;
+  border-radius: 12px;
+  box-shadow: 0 4px 18px rgba(30, 60, 45, 0.08);
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr) 20px;
+  align-items: center;
+  gap: 12px;
+}
+
+.form-row label {
+  color: #35483d;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.form-row input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  height: 40px;
+  padding: 8px 12px;
+  color: #24352b;
+  background: #fff;
+  border: 1px solid #cbd5ce;
+  border-radius: 7px;
+  font: inherit;
+}
+
+.form-row input:focus {
+  border-color: #3c8260;
+  outline: 3px solid rgba(60, 130, 96, 0.16);
+}
+
+.form-unit {
+  color: #63746a;
+  font-size: 14px;
+}
+
+/* スマートフォンではラベルを入力欄の上に置く */
+@media (max-width: 520px) {
+  .collection-form {
+    padding: 18px;
+  }
+
+  .form-row {
+    grid-template-columns: minmax(0, 1fr) 20px;
+    gap: 6px 8px;
+  }
+
+  .form-row label {
+    grid-column: 1 / -1;
+  }
+}
