@@ -46,6 +46,8 @@ function App() {
   // const [elevationError, setElevationError] =useState('');
   const [selectedPosition, setSelectedPosition] =useState<Position | null>(null);
   const [placeName, setPlaceName] = useState('');
+  const [placeNameForLabel, setPlaceNameForLabel] = useState('');
+  
   // const [isLoadingPlaceName, setIsLoadingPlaceName] =useState(false);
   // const [placeNameError, setPlaceNameError] =useState('');
   const [latitudeInput, setLatitudeInput] =useState('');
@@ -84,6 +86,7 @@ async function selectPosition(
   // 前回選んだ地点の値を消す
   setElevationInput('');
   setPlaceName('');
+  setPlaceNameForLabel('');
   setMapInformationError('');
   setIsLoadingMapInformation(true);
 
@@ -95,6 +98,7 @@ try {
 
     setElevationInput(String(elevation));
     setPlaceName(place.placeName);
+    setPlaceNameForLabel(place.placeName);
     setPlaceNameRomaji(toRomaji(place.placeNameKana));
   } catch (error) {
     setMapInformationError(
@@ -147,6 +151,7 @@ async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     const newRecord: Omit<CollectionRecord, "id" | "cloudId"> = {
         // id: nextId,
       location: placeName,
+      locationLabel: placeNameForLabel,
       locationRomaji: placeNameRomaji,
       latitude: Number(latitudeInput),
       longitude: Number(longitudeInput),
@@ -169,6 +174,7 @@ async function handleSubmit(event: FormEvent<HTMLFormElement>) {
 
     // 登録後に入力欄の値を元に戻す
     setPlaceName('');
+    setPlaceNameForLabel('');
     setPlaceNameRomaji('');
     setLatitudeInput('');
     setLongitudeInput('');
@@ -226,7 +232,7 @@ async function handleSubmit(event: FormEvent<HTMLFormElement>) {
 {/* 入力フォーム */}
 <form onSubmit={handleSubmit}>
   <div className="form-row">
-  <label htmlFor="placeName">採集地</label>
+  <label htmlFor="placeName">採集地（データベース用）</label>
     <input
       id="placeName"
       type="text"
@@ -235,6 +241,21 @@ async function handleSubmit(event: FormEvent<HTMLFormElement>) {
       required
       style={{
       width: `${Math.max(placeName.length + 2, 10)}em`,
+      maxWidth: '100%',
+      }}
+    />
+  </div>
+
+  <div className="form-row">
+  <label htmlFor="placeNameForLabel">採集地（ラベル用）</label>
+    <input
+      id="placeNameForLabel"
+      type="text"
+      value={placeNameForLabel}
+      onChange={(event) => {setPlaceNameForLabel(event.target.value);}}
+      required
+      style={{
+      width: `${Math.max(placeNameForLabel.length + 2, 10)}em`,
       maxWidth: '100%',
       }}
     />

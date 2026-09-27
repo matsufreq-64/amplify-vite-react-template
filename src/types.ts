@@ -43,6 +43,7 @@ export type CollectionRecord = {
   id: number;
   cloudId: string;
   location: string;
+  locationLabel: string;
   locationRomaji: string;
   latitude: number;
   longitude: number;

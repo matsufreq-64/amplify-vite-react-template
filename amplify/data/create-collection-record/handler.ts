@@ -54,6 +54,7 @@ const { data, errors } = await client.models.CollectionRecord.create(
   {
     recordNumber,
     location: event.arguments.location,
+    locationLabel: event.arguments.locationLabel,
     locationRomaji: event.arguments.locationRomaji,
     latitude: event.arguments.latitude,
     longitude: event.arguments.longitude,

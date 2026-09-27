@@ -17,6 +17,7 @@ function toCollectionRecord(
     id: item.recordNumber,
     cloudId: item.id,
     location: item.location,
+    locationLabel: item.locationLabel,
     locationRomaji: item.locationRomaji,
     latitude: item.latitude,
     longitude: item.longitude,
@@ -52,6 +53,7 @@ const { data, errors } =
   await client.mutations.registerCollectionRecord(
     {
         location: record.location,
+        locationLabel: record.locationLabel,
         locationRomaji: record.locationRomaji,
         latitude: record.latitude,
         longitude: record.longitude,

@@ -23,6 +23,7 @@ CollectionRecord: a
   .model({
     recordNumber: a.integer().required(),
     location: a.string().required(),
+    locationLabel: a.string().required(),
     locationRomaji: a.string().required(),
     latitude: a.float().required(),
     longitude: a.float().required(),
@@ -41,6 +42,7 @@ CollectionRecord: a
     .mutation()
     .arguments({
       location: a.string().required(),
+      locationLabel: a.string().required(),
       locationRomaji: a.string().required(),
       latitude: a.float().required(),
       longitude: a.float().required(),
