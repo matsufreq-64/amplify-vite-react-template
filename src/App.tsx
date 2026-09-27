@@ -23,6 +23,30 @@ function App() {
     client.models.Todo.delete({ id });
   }
 
+async function createTestCollectionRecord() {
+  const { data, errors } = await client.models.CollectionRecord.create(
+    {
+      recordNumber: 1,
+      location: "テスト地点",
+      locationRomaji: "Test location",
+      latitude: 35.0,
+      longitude: 137.0,
+      altitude: 100,
+      date: "2026-09-27",
+      collector: "テスト",
+      collectingMethod: "灯火",
+    },
+    { authMode: "userPool" }
+  );
+
+  if (errors?.length || !data) {
+    window.alert(errors?.map((e) => e.message).join("\n") || "保存に失敗しました");
+    return;
+  }
+
+  window.alert(`採集記録を保存しました。ID: ${data.id}`);
+}
+  
   const { signOut } = useAuthenticator();
 
 
@@ -42,6 +66,11 @@ function App() {
           Review next step of this tutorial.
         </a>
       </div>
+
+      <button onClick={createTestCollectionRecord}>
+        テスト採集記録を保存
+      </button>
+      
       <button onClick={signOut}>ログアウト</button>
     </main>
   );
