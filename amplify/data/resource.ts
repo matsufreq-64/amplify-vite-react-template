@@ -1,4 +1,10 @@
-import { type ClientSchema, a, defineData } from "@aws-amplify/backend";
+import { type ClientSchema, a, defineData, defineFunction } from "@aws-amplify/backend";
+
+// 記録番号発番用
+export const createCollectionRecord = defineFunction({
+  name: "create-collection-record",
+  entry: "./create-collection-record/handler.ts",
+});
 
 /*== STEP 1 ===============================================================
 The section below creates a Todo database table with a "content" field. Try
@@ -25,7 +31,29 @@ const schema = a.schema({
     collectingMethod: a.string().required(),
   }).authorization(allow => [allow.owner()]),
 
-});
+// データベースのテーブルの定義
+// authorization allow.owner()のように、「誰がその記録を読み書きできるか」
+
+  createCollectionRecord: a
+    .mutation()
+    .arguments({
+      location: a.string().required(),
+      locationRomaji: a.string().required(),
+      latitude: a.float().required(),
+      longitude: a.float().required(),
+      altitude: a.float().required(),
+      date: a.date().required(),
+      collector: a.string().required(),
+      collectingMethod: a.string().required(),
+    })
+    .returns(a.ref("CollectionRecord"))
+    .authorization((allow) => [allow.authenticated()])
+    .handler(a.handler.function(createCollectionRecord)),
+
+  })
+  .authorization((allow) => [
+  allow.resource(createCollectionRecord),
+]);
 
 export type Schema = ClientSchema<typeof schema>;
 

@@ -137,14 +137,14 @@ async function handleSubmit(event: FormEvent<HTMLFormElement>) {
       return;
     }
 
-    const nextId =
-      records.length === 0
-        ? 1
-        : Math.max(...records.map((record) => record.id)) + 1;
+    // const nextId =
+    //   records.length === 0
+    //     ? 1
+    //     : Math.max(...records.map((record) => record.id)) + 1;
 
     // newRecordという変数に入力欄の内容を代入する
-    const newRecord: Omit<CollectionRecord, 'cloudId'> = {
-      id: nextId,
+    const newRecord: Omit<CollectionRecord, "id" | "cloudId"> = {
+        // id: nextId,
       location: placeName,
       locationRomaji: placeNameRomaji,
       latitude: Number(latitudeInput),

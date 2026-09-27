@@ -46,31 +46,33 @@ export async function loadCollectionRecords(): Promise<CollectionRecord[]> {
 }
 
 export async function saveCollectionRecord(
-  record: Omit<CollectionRecord, 'cloudId'>
+  record: Omit<CollectionRecord, "id" | "cloudId">
 ): Promise<CollectionRecord> {
-  const { data, errors } = await client.models.CollectionRecord.create(
-    {
-      recordNumber: record.id,
-      location: record.location,
-      locationRomaji: record.locationRomaji,
-      latitude: record.latitude,
-      longitude: record.longitude,
-      altitude: record.altitude,
-      date: record.date,
-      collector: record.collector,
-      collectingMethod: record.collectingMethod,
-    },
-    { authMode: 'userPool' }
-  );
+  const { data, errors } =
+    await client.mutations.createCollectionRecord(
+      {
+        location: record.location,
+        locationRomaji: record.locationRomaji,
+        latitude: record.latitude,
+        longitude: record.longitude,
+        altitude: record.altitude,
+        date: record.date,
+        collector: record.collector,
+        collectingMethod: record.collectingMethod,
+      },
+      { authMode: "userPool" }
+    );
+
   checkErrors(errors);
-  if (!data) throw new Error('保存結果を取得できませんでした。');
+  if (!data) throw new Error("保存結果を取得できませんでした。");
+
   return toCollectionRecord(data);
 }
 
 export async function removeCollectionRecord(cloudId: string): Promise<void> {
   const { errors } = await client.models.CollectionRecord.delete(
     { id: cloudId },
-    { authMode: 'userPool' }
+    { authMode: "userPool" }
   );
   checkErrors(errors);
 }
