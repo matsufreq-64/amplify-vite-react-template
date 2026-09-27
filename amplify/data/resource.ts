@@ -19,7 +19,8 @@ const schema = a.schema({
     })
     .authorization((allow) => [allow.publicApiKey()]),
 
-  CollectionRecord: a.model({
+CollectionRecord: a
+  .model({
     recordNumber: a.integer().required(),
     location: a.string().required(),
     locationRomaji: a.string().required(),
@@ -29,7 +30,9 @@ const schema = a.schema({
     date: a.date().required(),
     collector: a.string().required(),
     collectingMethod: a.string().required(),
-  }).authorization(allow => [allow.owner()]),
+    owner: a.string(),
+  })
+  .authorization((allow) => [allow.owner()]),
 
 // データベースのテーブルの定義
 // authorization allow.owner()のように、「誰がその記録を読み書きできるか」
