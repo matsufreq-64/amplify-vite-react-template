@@ -24,6 +24,9 @@ const counterTable = new dynamodb.Table(
   }
 );
 
+const createRecordLambda =
+  backend.createCollectionRecord.resources.lambda;
+
 counterTable.grantReadWriteData(createRecordLambda);
 
 backend.createCollectionRecord.addEnvironment(
