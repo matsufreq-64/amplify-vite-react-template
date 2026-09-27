@@ -34,7 +34,7 @@ const schema = a.schema({
 // データベースのテーブルの定義
 // authorization allow.owner()のように、「誰がその記録を読み書きできるか」
 
-  createCollectionRecord: a
+  registerCollectionRecord: a
     .mutation()
     .arguments({
       location: a.string().required(),

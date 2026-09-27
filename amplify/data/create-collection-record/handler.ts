@@ -13,7 +13,7 @@ Amplify.configure(resourceConfig, libraryOptions);
 const client = generateClient<Schema>();
 const dynamodb = new DynamoDBClient({});
 
-export const handler: Schema["createCollectionRecord"]["functionHandler"] =
+export const handler: Schema["registerCollectionRecord"]["functionHandler"] =
   async (event) => {
     const identity = event.identity as {
       sub?: string;

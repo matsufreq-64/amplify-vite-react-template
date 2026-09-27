@@ -48,9 +48,9 @@ export async function loadCollectionRecords(): Promise<CollectionRecord[]> {
 export async function saveCollectionRecord(
   record: Omit<CollectionRecord, "id" | "cloudId">
 ): Promise<CollectionRecord> {
-  const { data, errors } =
-    await client.mutations.createCollectionRecord(
-      {
+const { data, errors } =
+  await client.mutations.registerCollectionRecord(
+    {
         location: record.location,
         locationRomaji: record.locationRomaji,
         latitude: record.latitude,
@@ -59,9 +59,9 @@ export async function saveCollectionRecord(
         date: record.date,
         collector: record.collector,
         collectingMethod: record.collectingMethod,
-      },
-      { authMode: "userPool" }
-    );
+    },
+    { authMode: "userPool" }
+  );
 
   checkErrors(errors);
   if (!data) throw new Error("保存結果を取得できませんでした。");
