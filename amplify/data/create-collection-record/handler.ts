@@ -50,14 +50,21 @@ export const handler: Schema["registerCollectionRecord"]["functionHandler"] =
       throw new Error("登録番号を取得できませんでした。");
     }
 
-    const { data, errors } = await client.models.CollectionRecord.create(
-      {
-        ...event.arguments,
-        recordNumber,
-        owner: `${identity.sub}::${identity.username}`,
-      },
-      { authMode: "iam" }
-    );
+const { data, errors } = await client.models.CollectionRecord.create(
+  {
+    recordNumber,
+    location: event.arguments.location,
+    locationRomaji: event.arguments.locationRomaji,
+    latitude: event.arguments.latitude,
+    longitude: event.arguments.longitude,
+    altitude: event.arguments.altitude,
+    date: event.arguments.date,
+    collector: event.arguments.collector,
+    collectingMethod: event.arguments.collectingMethod,
+    owner: `${identity.sub}::${identity.username}`,
+  },
+  { authMode: "iam" }
+);
 
     if (errors?.length || !data) {
       throw new Error(
