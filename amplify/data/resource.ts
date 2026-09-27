@@ -12,6 +12,19 @@ const schema = a.schema({
       content: a.string(),
     })
     .authorization((allow) => [allow.publicApiKey()]),
+
+  CollectionRecord: a.model({
+    recordNumber: a.integer().required(),
+    location: a.string().required(),
+    locationRomaji: a.string().required(),
+    latitude: a.float().required(),
+    longitude: a.float().required(),
+    altitude: a.float().required(),
+    date: a.date().required(),
+    collector: a.string().required(),
+    collectingMethod: a.string().required(),
+  }).authorization(allow => [allow.owner()]),
+
 });
 
 export type Schema = ClientSchema<typeof schema>;
