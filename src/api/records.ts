@@ -78,3 +78,29 @@ export async function removeCollectionRecord(cloudId: string): Promise<void> {
   );
   checkErrors(errors);
 }
+
+export async function getCollectionRecordByNumber(
+  recordNumber: number
+): Promise<CollectionRecord | null> {
+  let nextToken: string | null | undefined;
+
+  do {
+    const result = await client.models.CollectionRecord.list({
+      filter: {
+        recordNumber: { eq: recordNumber },
+      },
+      authMode: "userPool",
+      nextToken,
+    });
+
+    checkErrors(result.errors);
+
+    if (result.data.length > 0) {
+      return toCollectionRecord(result.data[0]);
+    }
+
+    nextToken = result.nextToken;
+  } while (nextToken);
+
+  return null;
+}

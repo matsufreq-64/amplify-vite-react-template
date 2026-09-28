@@ -7,6 +7,7 @@ export default function RecordCard({ record,onDelete, }: RecordCardProps) {
       {/* <h2>{record.speciesName}</h2> */}
       <p>採集ID：{record.id}</p>
       <p>採集地（日本語）：{record.location}</p>
+      <p>採集地（ラベル）：{record.locationLabel}</p>
       <p>採集地（ローマ字）：{record.locationRomaji}</p>
       <p>緯度,経度,標高： {record.latitude}, {record.longitude}, alt.{record.altitude}m</p>      
       <p>採集日：{record.date}</p>

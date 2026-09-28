@@ -347,6 +347,9 @@ async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     />
   </div>
 
+  <p>コピペ用
+    Ō, ō
+  </p>
 
   <button className="add-button" type="submit" disabled={isSaving || isLoadingRecords}>
     {isSaving ? '保存中…' : '記録を追加'}

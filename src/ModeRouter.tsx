@@ -1,5 +1,7 @@
 import { useState } from "react";
 import App from "./App";
+import Touroku from "./Touroku";
+
 
 type Mode =
   | "collection"
@@ -50,12 +52,14 @@ export default function ModeRouter() {
 
       {mode === "collection" && <App />}
 
-      {mode === "specimen" && (
-        <main>
-          <h1>標本データベース登録</h1>
-          <p>この画面はこれから作成します。</p>
-        </main>
-      )}
+      {mode === "specimen" && <Touroku />
+      // (
+      //   // <main>
+      //   //   <h1>標本データベース登録</h1>
+      //   //   <p>この画面はこれから作成します。</p>
+      //   // </main>
+      // )
+      }
 
       {mode === "identification" && (
         <main>
