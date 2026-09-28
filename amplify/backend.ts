@@ -21,15 +21,29 @@ const counterTable = new dynamodb.Table(
     },
     billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
     removalPolicy: RemovalPolicy.RETAIN,
-  }
+  },
 );
 
-const createRecordLambda =
-  backend.createCollectionRecord.resources.lambda;
+const createRecordLambda = backend.createCollectionRecord.resources.lambda;
 
 counterTable.grantReadWriteData(createRecordLambda);
 
 backend.createCollectionRecord.addEnvironment(
   "COUNTER_TABLE_NAME",
-  counterTable.tableName
+  counterTable.tableName,
 );
+
+for (const name of [
+  "CollectionRecord",
+  "Specimen",
+  "Identification",
+  "LabelBatch",
+  "Taxon",
+] as const) {
+  const table = backend.data.resources.tables[name];
+  table.grantReadWriteData(createRecordLambda);
+  backend.createCollectionRecord.addEnvironment(
+    `${name.toUpperCase()}_TABLE`,
+    table.tableName,
+  );
+}

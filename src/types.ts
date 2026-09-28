@@ -28,10 +28,7 @@ export type HeartRailsResponse = {
 };
 
 export type MapClickHandlerProps = {
-  onSelect: (
-    latitude: number,
-    longitude: number
-  ) => void;
+  onSelect: (latitude: number, longitude: number) => void;
 };
 
 export type RecordCardProps = {
@@ -45,9 +42,9 @@ export type CollectionRecord = {
   location: string;
   locationLabel: string;
   locationRomaji: string;
-  latitude: number;
-  longitude: number;
-  altitude: number;
+  latitude?: number;
+  longitude?: number;
+  altitude?: number;
   date: string;
   collector: string;
   collectingMethod: string;

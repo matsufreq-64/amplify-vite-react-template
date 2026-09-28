@@ -1,43 +1,51 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useId, useRef } from "react";
 import { Html5QrcodeScanner } from "html5-qrcode";
-
-type QrScannerProps = {
+export default function QrScanner({
+  onScan,
+}: {
   onScan: (text: string) => void;
-};
-
-export default function QrScanner({ onScan }: QrScannerProps) {
+}) {
+  const id = `qr-${useId().replace(/:/g, "")}`;
   const onScanRef = useRef(onScan);
-
   useEffect(() => {
     onScanRef.current = onScan;
   }, [onScan]);
-
   useEffect(() => {
-    // StrictModeの最初の後片付けで取り消せるよう、描画を次の処理へ送る
+    let scanner: Html5QrcodeScanner | null = null;
+    let accepted = false;
     const timer = window.setTimeout(() => {
-      const scanner = new Html5QrcodeScanner(
-        "qr-reader",
-        { fps: 10, qrbox: { width: 250, height: 250 } },
-        false
+      scanner = new Html5QrcodeScanner(
+        id,
+        {
+          fps: 10,
+          qrbox: (w, h) => ({
+            width: Math.min(230, w * 0.8),
+            height: Math.min(230, h * 0.8),
+          }),
+          videoConstraints: { facingMode: "environment" },
+        },
+        false,
       );
-
       scanner.render(
-        (decodedText) => onScanRef.current(decodedText),
-        () => {}
+        (text) => {
+          if (accepted) return;
+          accepted = true;
+          onScanRef.current(text);
+        },
+        () => {},
       );
-
-      activeScanner = scanner;
     }, 0);
-
-    let activeScanner: Html5QrcodeScanner | null = null;
-
     return () => {
       window.clearTimeout(timer);
-      if (activeScanner) {
-        void activeScanner.clear().catch(console.error);
-      }
+      if (scanner) void scanner.clear().catch(console.error);
     };
-  }, []);
-
-  return <div id="qr-reader" />;
+  }, [id]);
+  return (
+    <div className="qr-scanner">
+      <div id={id} />
+      <small>
+        映像は左右反転で表示しています。QRの内容はそのまま読み取ります。
+      </small>
+    </div>
+  );
 }

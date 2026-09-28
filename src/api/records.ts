@@ -1,106 +1,45 @@
-import type { Schema } from '../../amplify/data/resource';
-import { generateClient } from 'aws-amplify/data';
-import type { CollectionRecord } from '../types';
-
-const client = generateClient<Schema>();
-
-function checkErrors(errors: readonly { message: string }[] | undefined) {
-  if (errors?.length) {
-    throw new Error(errors.map((error) => error.message).join('\n'));
-  }
+// Compatibility adapter for older consumers; the current UI uses workflow.ts and domain.ts.
+import { createEvent, findEvent, listPage } from "./workflow";
+import type { CollectingEvent } from "../domain";
+import type { CollectionRecord } from "../types";
+const adapt = (event: CollectingEvent): CollectionRecord => ({
+  id: event.eventNumber,
+  cloudId: event.id,
+  location: event.localityJapaneseFull,
+  locationLabel: event.localityJapaneseShort,
+  locationRomaji: event.localityRomaji,
+  latitude: event.latitude,
+  longitude: event.longitude,
+  altitude: event.altitude,
+  date: event.date,
+  collector: event.collector,
+  collectingMethod: event.method,
+});
+export async function getCollectionRecordByNumber(number: number) {
+  return adapt(await findEvent(number));
 }
-
-function toCollectionRecord(
-  item: Schema['CollectionRecord']['type']
-): CollectionRecord {
-  return {
-    id: item.recordNumber,
-    cloudId: item.id,
-    location: item.location,
-    locationLabel: item.locationLabel,
-    locationRomaji: item.locationRomaji,
-    latitude: item.latitude,
-    longitude: item.longitude,
-    altitude: item.altitude,
-    date: item.date,
-    collector: item.collector,
-    collectingMethod: item.collectingMethod,
-  };
+export async function loadCollectionRecords() {
+  const page = await listPage<CollectingEvent>("CollectionRecord");
+  return page.items.map(adapt);
 }
-
-export async function loadCollectionRecords(): Promise<CollectionRecord[]> {
-  const records: CollectionRecord[] = [];
-  let nextToken: string | null | undefined;
-
-  do {
-    const result = await client.models.CollectionRecord.list({
-      authMode: 'userPool',
-      limit: 1000,
-      nextToken,
-    });
-    checkErrors(result.errors);
-    records.push(...result.data.map(toCollectionRecord));
-    nextToken = result.nextToken;
-  } while (nextToken);
-
-  return records.sort((a, b) => a.id - b.id);
-}
-
 export async function saveCollectionRecord(
-  record: Omit<CollectionRecord, "id" | "cloudId">
-): Promise<CollectionRecord> {
-const { data, errors } =
-  await client.mutations.registerCollectionRecord(
-    {
-        location: record.location,
-        locationLabel: record.locationLabel,
-        locationRomaji: record.locationRomaji,
-        latitude: record.latitude,
-        longitude: record.longitude,
-        altitude: record.altitude,
-        date: record.date,
-        collector: record.collector,
-        collectingMethod: record.collectingMethod,
-    },
-    { authMode: "userPool" }
+  record: Omit<CollectionRecord, "id" | "cloudId">,
+) {
+  return adapt(
+    await createEvent({
+      localityJapaneseFull: record.location,
+      localityJapaneseShort: record.locationLabel,
+      localityRomaji: record.locationRomaji,
+      latitude: record.latitude,
+      longitude: record.longitude,
+      altitude: record.altitude,
+      date: record.date,
+      collector: record.collector,
+      method: record.collectingMethod,
+      memo: "",
+    }),
   );
-
-  checkErrors(errors);
-  if (!data) throw new Error("保存結果を取得できませんでした。");
-
-  return toCollectionRecord(data);
 }
-
-export async function removeCollectionRecord(cloudId: string): Promise<void> {
-  const { errors } = await client.models.CollectionRecord.delete(
-    { id: cloudId },
-    { authMode: "userPool" }
-  );
-  checkErrors(errors);
-}
-
-export async function getCollectionRecordByNumber(
-  recordNumber: number
-): Promise<CollectionRecord | null> {
-  let nextToken: string | null | undefined;
-
-  do {
-    const result = await client.models.CollectionRecord.list({
-      filter: {
-        recordNumber: { eq: recordNumber },
-      },
-      authMode: "userPool",
-      nextToken,
-    });
-
-    checkErrors(result.errors);
-
-    if (result.data.length > 0) {
-      return toCollectionRecord(result.data[0]);
-    }
-
-    nextToken = result.nextToken;
-  } while (nextToken);
-
-  return null;
+export async function removeCollectionRecord(_id: string): Promise<void> {
+  throw new Error(`採集イベント ${_id} の削除は参照データ保護のため無効です。`);
 }
