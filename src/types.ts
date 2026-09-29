@@ -42,6 +42,9 @@ export type CollectionRecord = {
   location: string;
   locationLabel: string;
   locationRomaji: string;
+  localityRomaji_1?: string;
+  localityRomaji_2?: string;
+  localityRomaji_3?: string;
   latitude?: number;
   longitude?: number;
   altitude?: number;

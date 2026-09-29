@@ -14,6 +14,9 @@ const empty = (): EventInput => ({
   localityJapaneseFull: "",
   localityJapaneseShort: "",
   localityRomaji: "",
+  localityRomaji_1: "",
+  localityRomaji_2: "",
+  localityRomaji_3: "",
   date: today(),
   collector: "",
   method: "",
@@ -140,6 +143,27 @@ export default function App() {
                 onChange={(e) => update("localityRomaji", e.target.value)}
               />
             </Field>
+            <fieldset className="stack">
+              <legend>データラベル用の採集地（ローマ字・任意）</legend>
+              <small>
+                上の「採集地（ローマ字）」とは別に保存します。ラベルでの改行位置に合わせて入力してください。
+              </small>
+              {(
+                [
+                  "localityRomaji_1",
+                  "localityRomaji_2",
+                  "localityRomaji_3",
+                ] as const
+              ).map((key, index) => (
+                <Field key={key} label={`ラベル${index + 1}行目（ローマ字）`}>
+                  <input
+                    name={key}
+                    value={form[key] ?? ""}
+                    onChange={(e) => update(key, e.target.value)}
+                  />
+                </Field>
+              ))}
+            </fieldset>
             <div className="form-grid three">
               {(["latitude", "longitude", "altitude"] as const).map(
                 (key, i) => (

@@ -365,3 +365,104 @@ test("legacy event IDs and numbers remain readable; duplicate legacy numbers are
   });
   await assert.rejects(call("findEvent", { eventNumber: 2 }), /重複/);
 });
+
+test("three label locality lines survive event save, lookup, list and label snapshot", async () => {
+  const lines = {
+    localityRomaji_1: "JAPAN, Aichi Pref.",
+    localityRomaji_2: "Nagoya-shi",
+    localityRomaji_3: "Atsuta-ku",
+  };
+  const event = (await call("createEvent", {
+    ...eventInput,
+    ...lines,
+    requestId: "three-lines-event-001",
+  })) as CollectingEvent;
+  const stored = rows("CollectionRecord").get(event.id)!;
+  assert.equal(stored.locationRomaji, eventInput.localityRomaji);
+  for (const [key, value] of Object.entries(lines))
+    assert.equal(stored[key], value);
+  const reloaded = (await call("findEvent", {
+    eventNumber: event.eventNumber,
+  })) as CollectingEvent;
+  assert.deepEqual(reloaded, event);
+  const page = (await call("list", { model: "CollectionRecord" })) as {
+    items: CollectingEvent[];
+  };
+  assert.deepEqual(page.items[0], event);
+  const batch = (await call("reserveLabels", {
+    eventNumber: event.eventNumber,
+    count: 1,
+    requestId: "three-lines-batch-001",
+  })) as LabelBatch;
+  for (const key of Object.keys(lines) as (keyof typeof lines)[]) {
+    assert.equal(reloaded[key], lines[key]);
+    assert.equal(batch.snapshot[key], lines[key]);
+  }
+});
+
+test("blank middle line is preserved and old records without the fields remain readable", async () => {
+  const event = (await call("createEvent", {
+    ...eventInput,
+    localityRomaji_1: "First line",
+    localityRomaji_2: "",
+    localityRomaji_3: "Third line",
+    requestId: "optional-lines-event-001",
+  })) as CollectingEvent;
+  const reloaded = (await call("findEvent", {
+    eventNumber: event.eventNumber,
+  })) as CollectingEvent;
+  assert.equal(reloaded.localityRomaji_1, "First line");
+  assert.equal(reloaded.localityRomaji_2, "");
+  assert.equal(reloaded.localityRomaji_3, "Third line");
+  rows("CollectionRecord").set("old-lines-id", {
+    id: "old-lines-id",
+    recordNumber: 2,
+    location: "旧採集地",
+    locationRomaji: "Original locality",
+    date: "2020-01-01",
+    collector: "A",
+    owner,
+  });
+  const old = (await call("findEvent", { eventNumber: 2 })) as CollectingEvent;
+  assert.equal(old.id, "old-lines-id");
+  assert.equal(old.localityRomaji, "Original locality");
+  assert.equal(old.localityRomaji_1, "");
+  assert.equal(old.localityRomaji_2, "");
+  assert.equal(old.localityRomaji_3, "");
+});
+
+test("legacy registration mutation persists all three optional lines and still accepts old callers", async () => {
+  const args = {
+    location: "採集地",
+    locationLabel: "地名",
+    locationRomaji: "Full locality",
+    latitude: 35,
+    longitude: 137,
+    altitude: 10,
+    date: "2026-09-29",
+    collector: "A",
+    collectingMethod: "灯火",
+  };
+  for (const lines of [
+    {
+      localityRomaji_1: "First",
+      localityRomaji_2: "Second",
+      localityRomaji_3: "Third",
+    },
+    {},
+  ]) {
+    const result = (await handler({
+      info: { fieldName: "registerCollectionRecord" },
+      identity: { sub: "user-1", username: "test-user" },
+      arguments: { ...args, ...lines },
+    })) as Row;
+    const reloaded = (await call("findEvent", {
+      eventNumber: result.recordNumber,
+    })) as CollectingEvent;
+    assert.equal(reloaded.id, result.id);
+    assert.equal(reloaded.localityRomaji, args.locationRomaji);
+    assert.equal(reloaded.localityRomaji_1, lines.localityRomaji_1 ?? "");
+    assert.equal(reloaded.localityRomaji_2, lines.localityRomaji_2 ?? "");
+    assert.equal(reloaded.localityRomaji_3, lines.localityRomaji_3 ?? "");
+  }
+});

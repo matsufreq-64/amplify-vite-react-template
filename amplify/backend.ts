@@ -1,5 +1,9 @@
 import { defineBackend } from "@aws-amplify/backend";
-import { aws_dynamodb as dynamodb, RemovalPolicy } from "aws-cdk-lib";
+import {
+  aws_dynamodb as dynamodb,
+  aws_iam as iam,
+  RemovalPolicy,
+} from "aws-cdk-lib";
 import { auth } from "./auth/resource";
 import { data, createCollectionRecord } from "./data/resource";
 
@@ -47,3 +51,15 @@ for (const name of [
     table.tableName,
   );
 }
+
+// Amplify exposes imported table constructs; grantReadWriteData can omit their
+// secondary indexes. Query needs permission on the index ARN itself.
+createRecordLambda.addToRolePolicy(
+  new iam.PolicyStatement({
+    actions: ["dynamodb:Query"],
+    resources: [
+      `${backend.data.resources.tables.CollectionRecord.tableArn}/index/byEventNumber`,
+      `${backend.data.resources.tables.Identification.tableArn}/index/bySpecimenHistory`,
+    ],
+  }),
+);

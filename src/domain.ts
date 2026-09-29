@@ -4,6 +4,9 @@ export type CollectingEvent = {
   localityJapaneseFull: string;
   localityJapaneseShort: string;
   localityRomaji: string;
+  localityRomaji_1?: string;
+  localityRomaji_2?: string;
+  localityRomaji_3?: string;
   latitude?: number;
   longitude?: number;
   altitude?: number;

@@ -65,6 +65,24 @@ export function EventSummary({ event }: { event: CollectingEvent }) {
           .join(" / ")}
       </small>
       {event.memo && <p>{event.memo}</p>}
+      {[
+        event.localityRomaji_1,
+        event.localityRomaji_2,
+        event.localityRomaji_3,
+      ].some(Boolean) && (
+        <div className="stack">
+          <small>データラベル用の採集地（ローマ字）</small>
+          {[
+            event.localityRomaji_1,
+            event.localityRomaji_2,
+            event.localityRomaji_3,
+          ].map((line, index) => (
+            <p key={index}>
+              {index + 1}行目：{line || "（空欄）"}
+            </p>
+          ))}
+        </div>
+      )}
     </section>
   );
 }
