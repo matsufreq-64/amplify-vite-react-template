@@ -1,4 +1,5 @@
 import { generateClient } from "aws-amplify/data";
+import { isUiTestMode } from "../testMode";
 import type { Schema } from "../../amplify/data/resource";
 import type {
   CollectingEvent,
@@ -17,6 +18,10 @@ async function call<T>(
   payload: object,
   write = false,
 ): Promise<T> {
+  if (isUiTestMode)
+    throw new Error(
+      "画面テストモードではAWSの保存・読込はできません。データを使うテストは通常起動（npm run dev）でサインインしてください。",
+    );
   if (typeof client.mutations.collectionWorkflow !== "function")
     throw new Error(
       "バックエンドの更新が必要です。新しいAmplify定義をデプロイし、amplify_outputs.jsonを更新してください。",

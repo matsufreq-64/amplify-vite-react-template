@@ -10,6 +10,7 @@ import {
 } from "@aws-sdk/lib-dynamodb";
 import { randomUUID, createHash } from "node:crypto";
 import { numberValue, type CollectingEvent } from "../../../src/domain";
+import { roundCoordinate } from "../../../src/registrationDefaults";
 
 type Row = Record<string, unknown>;
 type Request = {
@@ -293,8 +294,8 @@ export async function handler(request: Request) {
       localityRomaji_1: text(p, "localityRomaji_1"),
       localityRomaji_2: text(p, "localityRomaji_2"),
       localityRomaji_3: text(p, "localityRomaji_3"),
-      latitude: optionalNumber(p, "latitude", -90, 90),
-      longitude: optionalNumber(p, "longitude", -180, 180),
+      latitude: roundCoordinate(optionalNumber(p, "latitude", -90, 90)),
+      longitude: roundCoordinate(optionalNumber(p, "longitude", -180, 180)),
       altitude: optionalNumber(p, "altitude"),
       date: date(p, "date", true),
       collector: text(p, "collector", true),

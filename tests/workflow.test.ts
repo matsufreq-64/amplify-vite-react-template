@@ -466,3 +466,26 @@ test("legacy registration mutation persists all three optional lines and still a
     assert.equal(reloaded.localityRomaji_3, lines.localityRomaji_3 ?? "");
   }
 });
+
+test("server rounds new coordinates to four decimal places without rounding altitude", async () => {
+  const result = (await call("createEvent", {
+    ...eventInput,
+    latitude: 35.1234567,
+    longitude: -136.987654,
+    altitude: 10.123456,
+    requestId: "coordinate-round-001",
+  })) as CollectingEvent;
+  const reloaded = (await call("findEvent", {
+    eventNumber: result.eventNumber,
+  })) as CollectingEvent;
+  assert.equal(reloaded.latitude, 35.1235);
+  assert.equal(reloaded.longitude, -136.9877);
+  assert.equal(reloaded.altitude, 10.123456);
+  await assert.rejects(
+    call("createEvent", {
+      ...eventInput,
+      latitude: 90.00001,
+      requestId: "coordinate-invalid-001",
+    }),
+  );
+});

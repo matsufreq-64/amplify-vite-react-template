@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { findEvent, listPage, reserveLabels } from "./api/workflow";
 import { numberValue, type CollectingEvent, type LabelBatch } from "./domain";
 import { EventSummary, Field, Notice } from "./ui";
-import { defaultLayout, downloadLabels, type Layout } from "./printing/labels";
+import { downloadLabels, loadLabelTemplate } from "./printing/labels";
 export default function Labels() {
   const [number, setNumber] = useState("");
   const [event, setEvent] = useState<CollectingEvent | null>(null);
@@ -13,8 +13,7 @@ export default function Labels() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
-  const [layout, setLayout] = useState<Layout>(defaultLayout);
-  const [template, setTemplate] = useState<File>();
+
   const guard = useRef(false);
   useEffect(() => {
     let active = true;
@@ -110,6 +109,7 @@ export default function Labels() {
                   }
                   onClick={() =>
                     void run(async () => {
+                      const templateBytes = await loadLabelTemplate();
                       const batch = await reserveLabels(
                         event.eventNumber,
                         count,
@@ -121,7 +121,7 @@ export default function Labels() {
                       setMessage(
                         `標本番号 ${batch.firstNumber}〜${batch.firstNumber + batch.count - 1} を確保しました。ダウンロードに失敗した場合は発行履歴から再作成できます。`,
                       );
-                      await downloadLabels(batch, layout, template);
+                      await downloadLabels(batch, templateBytes);
                     })
                   }
                 >
@@ -133,76 +133,32 @@ export default function Labels() {
           )}
         </div>
         <section className="panel stack">
-          <h2>印刷レイアウト</h2>
-          <p className="muted">
-            標準はA4・横3枚。Excelの印刷倍率を100%にして試し刷りし、QRの読取と裁断位置を確認してください。
+          <h2>指定のExcelテンプレート</h2>
+          <p>
+            <strong>qr_label_template.xlsm</strong>
           </p>
-          <Field
-            label="独自のExcelテンプレート（任意）"
-            hint="先頭シートに書き込みます。各ブロックの左上セルが本文、右端列がQRです。"
-          >
-            <input
-              type="file"
-              accept=".xlsx"
-              disabled={busy}
-              onChange={(e) => setTemplate(e.target.files?.[0])}
-            />
-          </Field>
-          {template && (
-            <button
-              className="secondary"
-              disabled={busy}
-              onClick={() => setTemplate(undefined)}
-            >
-              標準レイアウトを使用
-            </button>
-          )}
-          <details>
-            <summary>セル配置を調整</summary>
-            <div className="form-grid">
-              {(Object.keys(defaultLayout) as (keyof Layout)[]).map(
-                (key, i) => (
-                  <Field
-                    key={key}
-                    label={
-                      [
-                        "開始行",
-                        "開始列（A=1）",
-                        "縦の間隔（行数）",
-                        "横の間隔（列数）",
-                        "横に並べる枚数",
-                        "QRサイズ / mm",
-                      ][i]
-                    }
-                  >
-                    <input
-                      type="number"
-                      min={1}
-                      value={layout[key]}
-                      disabled={busy}
-                      onChange={(e) =>
-                        setLayout((v) => ({
-                          ...v,
-                          [key]: Number(e.target.value),
-                        }))
-                      }
-                    />
-                  </Field>
-                ),
-              )}
-            </div>
-          </details>
+          <p className="muted">
+            添付いただいたテンプレートの書式・行高・列幅・用紙設定を使います。横2枚×縦10段で、20枚を超える場合は次のページへ続きます。
+          </p>
           <div className="label-preview">
             <div>
-              <strong>採集地 / Locality</strong>
-              <span>2026-09-29 Collector leg.</span>
-              <small>CE 2 / SP 00000103</small>
+              <strong>Japan: {event?.localityRomaji_1 || "ラベル1行目"}</strong>
+              <span>{event?.localityRomaji_2 || "ラベル2行目"}</span>
+              <span>{event?.localityRomaji_3 || "ラベル3行目"}</span>
+              <span>{event?.localityJapaneseShort || "採集地（日本語）"}</span>
+              <small>
+                {event?.date || "採集日"} / {event?.collector || "採集者"}
+              </small>
             </div>
             <span className="qr-placeholder">QR</span>
           </div>
           <small>
-            上図は構成の見本です。実際の内容は選択したイベントから作成します。
+            上図は項目の見本です。ローマ字の3行は各入力欄に対応し、未入力の行は空欄になります。緯度・経度は小数第4位まで印刷します。
           </small>
+          <p className="muted">
+            出力は .xlsm
+            です。QRは画像として埋め込むため、印刷のためにマクロを実行する必要はありません。印刷倍率100%で試し刷りしてください。
+          </p>
         </section>
       </div>
       <section className="panel stack">
@@ -231,9 +187,7 @@ export default function Labels() {
               <button
                 className="secondary"
                 disabled={busy}
-                onClick={() =>
-                  void run(() => downloadLabels(b, layout, template))
-                }
+                onClick={() => void run(() => downloadLabels(b))}
               >
                 Excelを再作成
               </button>

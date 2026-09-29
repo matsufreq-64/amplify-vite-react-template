@@ -65,6 +65,12 @@ export function EventSummary({ event }: { event: CollectingEvent }) {
           .join(" / ")}
       </small>
       {event.memo && <p>{event.memo}</p>}
+      {(event.latitude != null || event.longitude != null) && (
+        <small>
+          緯度 {event.latitude?.toFixed(4) ?? "—"} / 経度{" "}
+          {event.longitude?.toFixed(4) ?? "—"}
+        </small>
+      )}
       {[
         event.localityRomaji_1,
         event.localityRomaji_2,
@@ -89,9 +95,11 @@ export function EventSummary({ event }: { event: CollectingEvent }) {
 export function IdentificationFields({
   value,
   onChange,
+  compact = false,
 }: {
   value: IdentificationInput;
   onChange: (v: IdentificationInput) => void;
+  compact?: boolean;
 }) {
   const update = (key: keyof IdentificationInput, text: string) =>
     onChange({ ...value, [key]: text });
@@ -153,9 +161,11 @@ export function IdentificationFields({
         >
           {voice.listening ? "● 音声を認識しています…" : "◎ 和名を音声入力"}
         </button>
-        <small className="inline-hint">
-          認識結果を確認・修正してから保存してください。
-        </small>
+        {!compact && (
+          <small className="inline-hint">
+            認識結果を確認・修正してから保存してください。
+          </small>
+        )}
       </div>
       <Notice error={voice.error || error} />
       {candidates.length > 0 && (
@@ -179,28 +189,34 @@ export function IdentificationFields({
           ))}
         </div>
       )}
-      <div className="form-grid">
-        <Field label="同定日（任意）">
-          <input
-            type="date"
-            value={value.identifiedAt}
-            onChange={(e) => update("identifiedAt", e.target.value)}
+      <details
+        open={compact ? undefined : true}
+        className={compact ? "identification-extra" : "identification-expanded"}
+      >
+        <summary>同定日・同定者・根拠（任意）</summary>
+        <div className="form-grid">
+          <Field label="同定日（任意）">
+            <input
+              type="date"
+              value={value.identifiedAt}
+              onChange={(e) => update("identifiedAt", e.target.value)}
+            />
+          </Field>
+          <Field label="同定者（任意）">
+            <input
+              value={value.identifiedBy}
+              onChange={(e) => update("identifiedBy", e.target.value)}
+            />
+          </Field>
+        </div>
+        <Field label="同定の根拠・訂正理由（任意）">
+          <textarea
+            value={value.memo}
+            onChange={(e) => update("memo", e.target.value)}
+            rows={2}
           />
         </Field>
-        <Field label="同定者（任意）">
-          <input
-            value={value.identifiedBy}
-            onChange={(e) => update("identifiedBy", e.target.value)}
-          />
-        </Field>
-      </div>
-      <Field label="同定の根拠・訂正理由（任意）">
-        <textarea
-          value={value.memo}
-          onChange={(e) => update("memo", e.target.value)}
-          rows={2}
-        />
-      </Field>
+      </details>
     </div>
   );
 }

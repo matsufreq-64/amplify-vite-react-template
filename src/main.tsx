@@ -9,14 +9,19 @@ import { Authenticator } from '@aws-amplify/ui-react';
 import '@aws-amplify/ui-react/styles.css';
 
 import ModeRouter from "./ModeRouter";
+import { isUiTestMode } from "./testMode";
 
 Amplify.configure(outputs);
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   
   <React.StrictMode>
-  <Authenticator>
+  {isUiTestMode ? (
+    <Authenticator.Provider>
+      <ModeRouter />
+    </Authenticator.Provider>
+  ) : <Authenticator>
     <ModeRouter />
-  </Authenticator>
+  </Authenticator>}
   </React.StrictMode>
 );

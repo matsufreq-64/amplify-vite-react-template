@@ -1,6 +1,7 @@
 import { lazy, Suspense, useState } from "react";
 import { useAuthenticator } from "@aws-amplify/ui-react";
 import App from "./App";
+import { isUiTestMode } from "./testMode";
 const Touroku = lazy(() => import("./Touroku"));
 const Labels = lazy(() => import("./Labels"));
 const Taxa = lazy(() => import("./Taxa"));
@@ -91,16 +92,19 @@ export default function ModeRouter() {
             コレクション <span className="dot">/</span>{" "}
             {modes.find((m) => m.id === mode)?.label}
           </span>
-          <div>
+          {isUiTestMode ? <span className="badge">画面テスト（サインイン省略）</span> : <div>
             <span className="user-name">
               {user?.signInDetails?.loginId || "ログイン中"}
             </span>
             <button className="quiet" onClick={signOut}>
               ログアウト
             </button>
-          </div>
+          </div>}
         </header>
         <main className="main-content">
+          {isUiTestMode && <p className="notice success ui-test-notice" role="status">
+            画面・入力操作のテスト用です。AWSのデータは保存・読込しません。
+          </p>}
           <Suspense
             fallback={
               <div className="panel" role="status">
