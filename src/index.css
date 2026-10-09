@@ -538,6 +538,22 @@ fieldset {
   font-size: 14px;
   color: #708076;
 }
+.specimen-result-main {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+.specimen-result-main > span {
+  color: #243c35;
+  overflow-wrap: anywhere;
+}
+.specimen-result-main time {
+  color: var(--muted);
+}
+.specimen-result-action {
+  margin-left: auto;
+  white-space: nowrap;
+}
 .clickable {
   width: 100%;
   background: white;
@@ -883,6 +899,35 @@ i {
 .registration-page .suggestions {
   max-height: 160px;
   overflow-y: auto;
+}
+.registration-recent ol {
+  display: grid;
+  gap: 8px;
+  max-height: 320px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+.registration-recent li {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+.registration-recent li > div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+}
+.registration-recent li p {
+  margin: 0;
+}
+.registration-recent li small,
+.registration-recent li span {
+  color: var(--muted);
 }
 .identification-expanded > summary {
   display: none;

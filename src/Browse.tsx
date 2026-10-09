@@ -19,9 +19,10 @@ import {
 } from "./domain";
 import { CollectingMethodField, EventSummary, Field, Notice } from "./ui";
 import { downloadCsv } from "./csv";
-import QrScanner from "./components/QrScanner";
+import MicroQrScanner from "./components/MicroQrScanner";
 import { numberValue, parseQr } from "./domain";
 import { initialIdentification } from "./registrationDefaults";
+import { eventSummariesForSpecimens } from "./specimenEvents";
 const eventFields = [
   ["localityJapaneseFull", "採集地（正式表記）"],
   ["localityJapaneseShort", "ラベル用の短い地名"],
@@ -67,6 +68,7 @@ const eventInput = (event: CollectingEvent): EventInput => ({
 export default function Browse() {
   const [model, setModel] = useState("CollectionRecord");
   const [items, setItems] = useState<(CollectingEvent | Specimen)[]>([]);
+  const [eventSummaries, setEventSummaries] = useState<Record<string, CollectingEvent>>({});
   const [cursor, setCursor] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [searchText, setSearchText] = useState("");
@@ -149,6 +151,11 @@ export default function Browse() {
       setSearchedRecords(true);
       if (!term) {
         const page = await listPage<CollectingEvent | Specimen>(model);
+        if (model === "Specimen")
+          setEventSummaries(await eventSummariesForSpecimens(
+            page.items as Specimen[], eventSummaries,
+            (cursor) => listPage<CollectingEvent>("CollectionRecord", cursor),
+          ));
         setItems(page.items);
         setCursor(page.cursor);
         return;
@@ -162,6 +169,11 @@ export default function Browse() {
         next = page.cursor;
         setProgress(`${found.size}件が一致・次のページを検索中…`);
       } while (next);
+      if (model === "Specimen")
+        setEventSummaries(await eventSummariesForSpecimens(
+          [...found.values()] as Specimen[], eventSummaries,
+          (cursor) => listPage<CollectingEvent>("CollectionRecord", cursor),
+        ));
       setItems([...found.values()]);
     });
   }
@@ -215,6 +227,7 @@ export default function Browse() {
       setSearchText("");
       setSearchedRecords(false);
       setDetail(found);
+      setEventSummaries((current) => ({ ...current, [found.event.id]: found.event }));
       setEditingEvent(null);
       setEditingSpecimen(false);
       setEditingIdentification(false);
@@ -241,6 +254,7 @@ export default function Browse() {
       setItems((current) =>
         current.map((item) => (item.id === saved.id ? saved : item)),
       );
+      setEventSummaries((current) => ({ ...current, [saved.id]: saved }));
       setEditingEvent(null);
       setEventDraft(null);
       setAudit(null);
@@ -285,13 +299,13 @@ export default function Browse() {
           <span className="eyebrow">04 / COLLECTION RECORDS</span>
           <h1>データ編集・出力</h1>
           <p>
-            QRや番号から標本を探し、同定・登録内容の編集とCSV出力を行います。
+            マイクロQRや番号から標本を探し、同定・登録内容の編集とCSV出力を行います。
           </p>
         </div>
       </div>
       <Notice error={error} message={message} />
       <section className="panel stack">
-        <h2>QR・標本番号で検索</h2>
+        <h2>マイクロQR・標本番号で検索</h2>
         <div className="toolbar">
           <button
             type="button"
@@ -299,10 +313,10 @@ export default function Browse() {
             disabled={busy}
             onClick={() => setCamera((current) => !current)}
           >
-            {camera ? "カメラを閉じる" : "▣ QRを読み取る"}
+            {camera ? "カメラを閉じる" : "▣ マイクロQRを読み取る"}
           </button>
         </div>
-        {camera && <QrScanner onScan={scan} />}
+        {camera && <MicroQrScanner onScan={scan} />}
         <form
           className="stack"
           onSubmit={(e) => {
@@ -582,14 +596,25 @@ export default function Browse() {
                   if (!found.specimen)
                     throw new Error("この標本はまだ登録されていません。");
                   setDetail(found);
+                  setEventSummaries((current) => ({ ...current, [found.event.id]: found.event }));
                   setEditingSpecimen(false);
                   setEditingIdentification(false);
                   setAudit(null);
                 })
               }
             >
-              <strong>{specimenLabel(item.specimenNumber)}</strong>
-              <span>{item.memo || "詳細・同定履歴を見る"} →</span>
+              <span className="specimen-result-main">
+                <strong>{specimenLabel(item.specimenNumber)}</strong>
+                {eventSummaries[item.collectingEventId] ? (
+                  <>
+                    <span>{eventSummaries[item.collectingEventId].localityJapaneseFull}</span>
+                    <time dateTime={eventSummaries[item.collectingEventId].date}>
+                      採集日：{eventSummaries[item.collectingEventId].date}
+                    </time>
+                  </>
+                ) : <span>採集情報を取得できませんでした</span>}
+              </span>
+              <span className="specimen-result-action">詳細・同定履歴を見る →</span>
             </button>
           ),
         )}
@@ -603,6 +628,11 @@ export default function Browse() {
                   model,
                   cursor,
                 );
+                if (model === "Specimen")
+                  setEventSummaries(await eventSummariesForSpecimens(
+                    p.items as Specimen[], eventSummaries,
+                    (nextCursor) => listPage<CollectingEvent>("CollectionRecord", nextCursor),
+                  ));
                 setItems((v) => [
                   ...v,
                   ...p.items.filter((t) => !v.some((old) => old.id === t.id)),

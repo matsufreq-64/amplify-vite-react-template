@@ -41,6 +41,16 @@ export default function Touroku({
   const [carryName, setCarryName] = useState(true);
   const [lastSaved, setLastSaved] = useState<IdentificationInput | null>(null);
   const [registeredCount, setRegisteredCount] = useState(0);
+  const [recentRegistrations, setRecentRegistrations] = useState<{
+    id: string;
+    eventNumber: number;
+    specimenNumber: number;
+    locality: string;
+    date: string;
+    japaneseName: string;
+    scientificName: string;
+    registeredAt: string;
+  }[]>([]);
   const lookupFormId = useId();
   const registerFormId = useId();
   const specimenInput = useRef<HTMLInputElement>(null);
@@ -176,6 +186,19 @@ export default function Touroku({
           scientificName: identification.scientificName.trim(),
         });
         setRegisteredCount((count) => count + 1);
+        setRecentRegistrations((current) => [{
+          id: specimen.id,
+          eventNumber: detail.event.eventNumber,
+          specimenNumber: specimen.specimenNumber,
+          locality: detail.event.localityJapaneseFull,
+          date: detail.event.date,
+          japaneseName: identification.japaneseName.trim(),
+          scientificName: identification.scientificName.trim(),
+          registeredAt: new Date().toLocaleTimeString("ja-JP", {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+        }, ...current]);
         setMessage(
           `${identification.japaneseName.trim() || identification.scientificName.trim() ? "同定付きで" : "未同定で"}登録しました。`,
         );
@@ -457,6 +480,28 @@ export default function Touroku({
             </article>
           ))}
         </details>
+      )}
+      {!reidentify && (
+        <section className="panel stack registration-recent" aria-label="この画面で登録した標本">
+          <h2>この画面で登録した標本（{recentRegistrations.length}件）</h2>
+          {recentRegistrations.length === 0 ? (
+            <p className="muted">登録すると、ここに新しい順で表示します。</p>
+          ) : (
+            <ol>
+              {recentRegistrations.map((entry) => (
+                <li key={entry.id}>
+                  <div>
+                    <strong>標本 #{entry.specimenNumber}</strong>
+                    <span>採集イベント #{entry.eventNumber} · {entry.registeredAt}</span>
+                  </div>
+                  <p>{entry.japaneseName || entry.scientificName || "未同定"}</p>
+                  {entry.japaneseName && entry.scientificName && <i>{entry.scientificName}</i>}
+                  <small>{entry.locality} · {entry.date}</small>
+                </li>
+              ))}
+            </ol>
+          )}
+        </section>
       )}
     </div>
   );
