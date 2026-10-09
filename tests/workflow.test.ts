@@ -137,6 +137,8 @@ const eventInput = {
   localityJapaneseFull: "愛知県名古屋市",
   localityJapaneseShort: "名古屋市",
   localityRomaji: "Nagoya",
+  localityRomaji_1: "Japan: Aichi-ken,",
+  localityRomaji_2: "Nagoya-shi",
   date: "2026-09-29",
   collector: "Collector",
   memo: "",
@@ -417,20 +419,23 @@ test("three label locality lines survive event save, lookup, list and label snap
   }
 });
 
-test("blank middle line is preserved and old records without the fields remain readable", async () => {
-  const event = (await call("createEvent", {
-    ...eventInput,
-    localityRomaji_1: "First line",
-    localityRomaji_2: "",
-    localityRomaji_3: "Third line",
-    requestId: "optional-lines-event-001",
-  })) as CollectingEvent;
-  const reloaded = (await call("findEvent", {
-    eventNumber: event.eventNumber,
-  })) as CollectingEvent;
-  assert.equal(reloaded.localityRomaji_1, "First line");
-  assert.equal(reloaded.localityRomaji_2, "");
-  assert.equal(reloaded.localityRomaji_3, "Third line");
+test("new records require the first two label lines while old records remain readable", async () => {
+  await assert.rejects(
+    call("createEvent", {
+      ...eventInput,
+      localityRomaji_1: " ",
+      requestId: "missing-first-line",
+    }),
+    /ラベル1行目/,
+  );
+  await assert.rejects(
+    call("createEvent", {
+      ...eventInput,
+      localityRomaji_2: "",
+      requestId: "missing-second-line",
+    }),
+    /ラベル2行目/,
+  );
   rows("CollectionRecord").set("old-lines-id", {
     id: "old-lines-id",
     recordNumber: 2,
@@ -523,6 +528,16 @@ test("event edits commit a durable before/after history and preserve issued labe
   })) as CollectingEvent;
   assert.equal(saved.localityJapaneseFull, "愛知県豊橋市");
   assert.equal(saved.altitude, 11);
+  await assert.rejects(
+    call("updateEvent", {
+      ...input,
+      localityRomaji_2: "",
+      id: event.id,
+      expectedUpdatedAt: saved.updatedAt,
+      requestId: "event-edit-missing-second-line",
+    }),
+    /ラベル2行目/,
+  );
   assert.equal(
     (
       (await call("findEvent", {

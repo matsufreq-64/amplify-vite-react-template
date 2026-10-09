@@ -1,14 +1,14 @@
 @import url("https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap");
 :root {
   font-family: "Noto Sans JP", system-ui, sans-serif;
-  font-size: 14px;
+  font-size: 16px;
   color: #243c35;
   background: #f5f6f2;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   --green: #265e49;
-  --muted: #718078;
+  --muted: #5e7065;
   --line: #e0e6df;
   --amplify-colors-brand-primary-80: #265e49;
   --amplify-colors-brand-primary-90: #194331;
@@ -51,24 +51,24 @@ p {
   margin: 0;
 }
 h1 {
-  font-size: 27px;
+  font-size: 29px;
   letter-spacing: 0.01em;
   font-weight: 600;
   margin: 8px 0 10px;
 }
 h2 {
-  font-size: 17px;
+  font-size: 19px;
   font-weight: 600;
 }
 h3 {
-  font-size: 16px;
+  font-size: 17px;
 }
 p {
   line-height: 1.9;
 }
 small {
   display: block;
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.8;
   color: var(--muted);
 }
@@ -105,7 +105,7 @@ fieldset {
   gap: 10px;
   align-items: center;
   text-decoration: none;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
 }
 .brand small {
@@ -153,32 +153,14 @@ fieldset {
   background: #f2f5ef;
 }
 .sidebar nav small {
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 400;
   margin-top: 3px;
 }
 .nav-icon {
   font-family: monospace;
-  font-size: 12px;
+  font-size: 14px;
   min-width: 22px;
-}
-.sidebar-bottom {
-  margin-top: auto;
-  font-size: 12px;
-  color: #5b7467;
-  border-top: 1px solid var(--line);
-  padding: 22px 10px 0;
-}
-.sidebar-bottom small {
-  margin-top: 8px;
-}
-.status-dot {
-  display: inline-block;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #6e9a6a;
-  margin-right: 8px;
 }
 .workspace {
   flex: 1;
@@ -190,9 +172,9 @@ fieldset {
   border-bottom: 1px solid var(--line);
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   padding: 0 40px;
-  font-size: 12px;
+  font-size: 13px;
   color: #77857c;
 }
 .topbar > div {
@@ -219,13 +201,13 @@ fieldset {
   gap: 16px;
 }
 .page-heading p {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--muted);
 }
 .eyebrow {
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 1.8px;
-  color: #73917b;
+  color: #52705b;
   font-weight: 600;
 }
 .badge {
@@ -234,7 +216,7 @@ fieldset {
   color: #60785f;
   background: #edf2e9;
   border: 1px solid #dde6d8;
-  font-size: 10px;
+  font-size: 12px;
   padding: 5px 9px;
   border-radius: 4px;
   vertical-align: middle;
@@ -253,9 +235,12 @@ fieldset {
 }
 .two-column {
   display: grid;
-  grid-template-columns: 1fr 1.12fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.12fr);
   gap: 24px;
   align-items: start;
+}
+.two-column > * {
+  min-width: 0;
 }
 .form-grid {
   display: grid;
@@ -270,7 +255,7 @@ fieldset {
   flex-direction: column;
   gap: 8px;
   min-width: 0;
-  font-size: 12px;
+  font-size: 14px;
 }
 .field > span {
   font-weight: 500;
@@ -292,7 +277,7 @@ fieldset {
   resize: vertical;
 }
 .field input::placeholder {
-  color: #a5aea7;
+  color: #6c8072;
 }
 .primary,
 .secondary,
@@ -300,7 +285,7 @@ fieldset {
   min-height: 44px;
   border-radius: 5px;
   padding: 11px 18px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
 }
 .primary {
@@ -321,7 +306,7 @@ fieldset {
 }
 .muted {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 14px;
 }
 .map-panel {
   display: flex;
@@ -331,6 +316,8 @@ fieldset {
 .map-panel .leaflet-container {
   border: 1px solid var(--line);
   border-radius: 5px;
+  width: 100%;
+  max-width: 100%;
   height: 390px !important;
   z-index: 0;
 }
@@ -343,8 +330,9 @@ fieldset {
   display: flex;
   flex-direction: column;
   gap: 9px;
+  overflow-wrap: anywhere;
 }
-.event-summary > div {
+.event-summary > div:first-child {
   display: flex;
   justify-content: space-between;
   gap: 10px;
@@ -352,10 +340,24 @@ fieldset {
 .number {
   font-family: monospace;
   color: #4f7157;
-  font-size: 14px;
+  font-size: 15px;
 }
 .event-summary p {
-  font-size: 12px;
+  font-size: 14px;
+}
+.event-summary .event-summary-date {
+  font-size: 17px;
+  font-weight: 600;
+}
+.event-summary-coordinates {
+  font-size: 14px;
+}
+.event-summary .event-summary-actions {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
 }
 .dot {
   margin: 0 8px;
@@ -365,7 +367,7 @@ fieldset {
   padding: 16px 18px;
   border-radius: 5px;
   line-height: 1.8;
-  font-size: 12px;
+  font-size: 14px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -434,7 +436,7 @@ fieldset {
   margin-left: 12px;
 }
 .count {
-  font-size: 12px;
+  font-size: 14px;
   color: #718078;
 }
 .inline-hint {
@@ -465,7 +467,7 @@ fieldset {
   padding: 16px 0;
 }
 .list-row p {
-  font-size: 12px;
+  font-size: 14px;
   color: #708076;
 }
 .clickable {
@@ -476,41 +478,11 @@ fieldset {
   text-align: left;
   color: #355c43;
 }
-.label-preview {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  background: #fffef9;
-  border: 1px dashed #bcc9b7;
-  max-width: 310px;
-  padding: 15px;
-  color: #222;
-}
-.label-preview > div {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-.label-preview strong {
-  font-size: 12px;
-}
-.label-preview span {
-  font-size: 9px;
-}
-.label-preview .qr-placeholder {
-  width: 45px;
-  height: 45px;
-  border: 4px double #384f3c;
-  display: grid;
-  place-items: center;
-  font-family: monospace;
-  font-size: 16px;
-}
 .empty {
   padding: 36px 16px;
   text-align: center;
-  color: #849182;
-  font-size: 12px;
+  color: #596f60;
+  font-size: 14px;
   background: #f8faf6;
   border-radius: 5px;
 }
@@ -518,7 +490,7 @@ details summary {
   cursor: pointer;
   min-height: 44px;
   color: #5d775d;
-  font-size: 12px;
+  font-size: 14px;
 }
 details .form-grid {
   padding-top: 12px;
@@ -549,7 +521,7 @@ details .form-grid {
   border-radius: 4px;
   padding: 10px 15px;
   color: #748471;
-  font-size: 12px;
+  font-size: 14px;
 }
 .segmented .selected {
   background: white;
@@ -560,7 +532,7 @@ details .form-grid {
   display: flex;
   align-items: center;
   gap: 9px;
-  font-size: 12px;
+  font-size: 14px;
 }
 .checkbox input {
   width: 18px;
@@ -571,7 +543,7 @@ footer {
   display: flex;
   justify-content: space-between;
   color: #8b988b;
-  font-size: 9px;
+  font-size: 12px;
   letter-spacing: 1.5px;
   border-top: 1px solid var(--line);
 }
@@ -598,7 +570,7 @@ i {
     padding: 30px 24px;
   }
   .two-column {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .topbar {
     padding: 0 24px;
@@ -620,7 +592,7 @@ i {
     border-bottom: 1px solid var(--line);
   }
   .brand {
-    font-size: 13px;
+    font-size: 15px;
   }
   .brand-mark {
     width: 32px;
@@ -628,7 +600,6 @@ i {
     font-size: 26px;
   }
   .nav-caption,
-  .sidebar-bottom,
   .sidebar nav small {
     display: none;
   }
@@ -641,17 +612,17 @@ i {
   .sidebar nav button {
     flex-shrink: 0;
     padding: 10px;
-    font-size: 11px;
+    font-size: 13px;
     gap: 7px;
   }
   .nav-icon {
     min-width: 16px;
-    font-size: 10px;
+    font-size: 12px;
   }
   .topbar {
     height: 49px;
     padding: 0 16px;
-    font-size: 10px;
+    font-size: 12px;
   }
   .user-name {
     display: none;
@@ -666,10 +637,10 @@ i {
     margin-top: 14px;
   }
   h1 {
-    font-size: 23px;
+    font-size: 25px;
   }
   h2 {
-    font-size: 16px;
+    font-size: 18px;
   }
   .panel {
     padding: 19px 16px;
@@ -705,23 +676,55 @@ i {
     white-space: nowrap;
   }
   .notice {
-    font-size: 12px;
+    font-size: 14px;
   }
   footer {
     padding: 18px 16px;
-    font-size: 8px;
+    font-size: 11px;
     letter-spacing: 0.5px;
   }
   .toolbar {
     flex-wrap: wrap;
   }
   .event-summary h3 {
-    font-size: 14px;
+    font-size: 17px;
   }
   .event-summary .eyebrow {
     letter-spacing: 0;
   }
-  .event-summary > div {
+  .event-summary > div:first-child {
+    flex-wrap: wrap;
+  }
+}
+@media (max-width: 520px) {
+  .form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .section-heading {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .segmented {
+    max-width: 100%;
+    flex-wrap: wrap;
+  }
+  .segmented button {
+    flex: 1 1 auto;
+  }
+  .event-summary .event-summary-actions button {
+    flex: 1 1 145px;
+  }
+  .inline-form {
+    flex-wrap: wrap;
+  }
+  .inline-form .field,
+  .inline-form button {
+    flex: 1 1 100%;
+  }
+  .inline-form button {
+    white-space: normal;
+  }
+  .registration-options {
     flex-wrap: wrap;
   }
 }
@@ -799,7 +802,7 @@ i {
   padding-top: 12px;
 }
 .registration-event p {
-  font-size: 12px;
+  font-size: 14px;
   margin-top: 8px;
   overflow-wrap: anywhere;
 }
@@ -881,10 +884,20 @@ i {
   }
   .registration-button-pair button {
     padding: 10px 8px;
-    font-size: 12px;
+    font-size: 14px;
+    overflow-wrap: anywhere;
   }
   .registration-dock .notice {
     max-height: 90px;
     overflow-y: auto;
+  }
+}
+@media (max-width: 380px) {
+  .registration-button-pair,
+  .registration-dock .registration-actions {
+    grid-template-columns: 1fr;
+  }
+  .registration-dock {
+    position: static;
   }
 }

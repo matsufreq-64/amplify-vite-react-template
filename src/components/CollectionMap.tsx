@@ -1,28 +1,36 @@
-import {MapContainer,TileLayer,useMapEvents,Marker,} from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
-import { Icon } from 'leaflet';
-import markerIcon from
-  'leaflet/dist/images/marker-icon.png';
-import markerIcon2x from
-  'leaflet/dist/images/marker-icon-2x.png';
-import markerShadow from
-  'leaflet/dist/images/marker-shadow.png';
-import type { MapClickHandlerProps, Position } from '../types';
+import { useEffect } from "react";
+import {
+  MapContainer,
+  TileLayer,
+  useMap,
+  useMapEvents,
+  Marker,
+} from "react-leaflet";
+import "leaflet/dist/leaflet.css";
+import { Icon } from "leaflet";
+import markerIcon from "leaflet/dist/images/marker-icon.png";
+import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
+import markerShadow from "leaflet/dist/images/marker-shadow.png";
+import type { MapClickHandlerProps, Position } from "../types";
 
 type CollectionMapProps = {
+  centerPosition: Position | null;
   selectedPosition: Position | null;
   onSelect: (latitude: number, longitude: number) => void;
 };
 
-function MapClickHandler({
-  onSelect,
-}: MapClickHandlerProps) {
+function MapCenter({ position }: { position: Position | null }) {
+  const map = useMap();
+  useEffect(() => {
+    if (position) map.setView([position.latitude, position.longitude]);
+  }, [map, position]);
+  return null;
+}
+
+function MapClickHandler({ onSelect }: MapClickHandlerProps) {
   useMapEvents({
     click(event) {
-      onSelect(
-        event.latlng.lat,
-        event.latlng.lng
-      );
+      onSelect(event.latlng.lat, event.latlng.lng);
     },
   });
 
@@ -43,6 +51,7 @@ const selectedLocationIcon = new Icon({
 });
 
 export default function CollectionMap({
+  centerPosition,
   selectedPosition,
   onSelect,
 }: CollectionMapProps) {
@@ -50,7 +59,7 @@ export default function CollectionMap({
     <MapContainer
       center={[35.13, 136.91]}
       zoom={13}
-      style={{ height: '400px', width: '100%' }}
+      style={{ height: "400px", width: "100%" }}
     >
       <TileLayer
         attribution={
@@ -60,18 +69,15 @@ export default function CollectionMap({
       />
 
       <MapClickHandler onSelect={onSelect} />
+      <MapCenter position={centerPosition} />
 
       {/* 地図上の地点が選択されたとき、マーカーを表示 */}
       {selectedPosition !== null && (
         <Marker
-          position={[
-            selectedPosition.latitude,
-            selectedPosition.longitude,
-          ]}
+          position={[selectedPosition.latitude, selectedPosition.longitude]}
           icon={selectedLocationIcon}
         />
       )}
-      
     </MapContainer>
   );
 }

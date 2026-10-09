@@ -42,7 +42,17 @@ export function Notice({
   );
 }
 
-export function EventSummary({ event }: { event: CollectingEvent }) {
+function coordinate(value: number, positive: string, negative: string) {
+  return `${Math.abs(value).toFixed(4)}°${value < 0 ? negative : positive}`;
+}
+
+export function EventSummary({
+  event,
+  actions,
+}: {
+  event: CollectingEvent;
+  actions?: ReactNode;
+}) {
   return (
     <section className="event-summary">
       <div>
@@ -52,7 +62,7 @@ export function EventSummary({ event }: { event: CollectingEvent }) {
         </strong>
       </div>
       <h3>{event.localityJapaneseFull}</h3>
-      <p>
+      <p className="event-summary-date">
         {event.date} <span className="dot">·</span> {event.collector}
       </p>
       <small>
@@ -66,9 +76,15 @@ export function EventSummary({ event }: { event: CollectingEvent }) {
       </small>
       {event.memo && <p>{event.memo}</p>}
       {(event.latitude != null || event.longitude != null) && (
-        <small>
-          緯度 {event.latitude?.toFixed(4) ?? "—"} / 経度{" "}
-          {event.longitude?.toFixed(4) ?? "—"}
+        <small className="event-summary-coordinates">
+          {[
+            event.latitude != null ? coordinate(event.latitude, "N", "S") : "",
+            event.longitude != null
+              ? coordinate(event.longitude, "E", "W")
+              : "",
+          ]
+            .filter(Boolean)
+            .join(" ")}
         </small>
       )}
       {[
@@ -89,6 +105,7 @@ export function EventSummary({ event }: { event: CollectingEvent }) {
           ))}
         </div>
       )}
+      {actions && <div className="event-summary-actions">{actions}</div>}
     </section>
   );
 }

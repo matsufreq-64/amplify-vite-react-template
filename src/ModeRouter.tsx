@@ -62,10 +62,11 @@ export default function ModeRouter() {
         >
           <span className="brand-mark">✳</span>
           <span>
-            採集標本データベース<small>FIELD NOTES & SPECIMENS</small>
+            採集標本データベース
+            {/* <small>FIELD NOTES & SPECIMENS</small> */}
           </span>
         </a>
-        <div className="nav-caption">WORKSPACE</div>
+        {/* <div className="nav-caption">WORKSPACE</div> */}
         <nav aria-label="メインメニュー">
           {modes.map((m) => (
             <button
@@ -82,17 +83,10 @@ export default function ModeRouter() {
             </button>
           ))}
         </nav>
-        <div className="sidebar-bottom">
-          <span className="status-dot" /> 個人コレクション
-          <small>採集の記録を、標本の記憶へ。</small>
-        </div>
       </aside>
       <div className="workspace">
         <header className="topbar">
-          <span>
-            コレクション <span className="dot">/</span>{" "}
-            {modes.find((m) => m.id === mode)?.label}
-          </span>
+          {/* <span>コレクション / {modes.find((m) => m.id === mode)?.label}</span> */}
           {isUiTestMode ? (
             <span className="badge">画面テスト（サインイン省略）</span>
           ) : (
@@ -128,7 +122,7 @@ export default function ModeRouter() {
           </Suspense>
         </main>
         <footer>
-          COLLECTION ARCHIVE <span>採集 → ラベル → 標本 → 同定</span>
+          COLLECTION ARCHIVE {/* <span>採集 → ラベル → 標本 → 同定</span> */}
         </footer>
       </div>
     </div>

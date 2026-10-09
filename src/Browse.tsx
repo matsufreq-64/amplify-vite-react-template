@@ -1,5 +1,5 @@
 import { errorText } from "./errors";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import {
   addIdentification,
   listEditHistory,
@@ -21,6 +21,7 @@ import { EventSummary, Field, Notice } from "./ui";
 import { downloadCsv } from "./csv";
 import QrScanner from "./components/QrScanner";
 import { numberValue, parseQr } from "./domain";
+import { initialIdentification } from "./registrationDefaults";
 const eventFields = [
   ["localityJapaneseFull", "採集地（正式表記）"],
   ["localityJapaneseShort", "ラベル用の短い地名"],
@@ -68,6 +69,8 @@ export default function Browse() {
   const [items, setItems] = useState<(CollectingEvent | Specimen)[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const [searchText, setSearchText] = useState("");
+  const [searchedRecords, setSearchedRecords] = useState(false);
   const [lookupNumber, setLookupNumber] = useState("");
   const [lookupEventNumber, setLookupEventNumber] = useState("");
   const [camera, setCamera] = useState(false);
@@ -85,13 +88,7 @@ export default function Browse() {
   const [editingSpecimen, setEditingSpecimen] = useState(false);
   const [editingIdentification, setEditingIdentification] = useState(false);
   const [identificationDraft, setIdentificationDraft] =
-    useState<IdentificationInput>({
-      japaneseName: "",
-      scientificName: "",
-      identifiedAt: "",
-      identifiedBy: "",
-      memo: "",
-    });
+    useState<IdentificationInput>(initialIdentification);
   const [specimenDraft, setSpecimenDraft] = useState({
     sex: "unexamined",
     memo: "",
@@ -99,30 +96,14 @@ export default function Browse() {
   const [audit, setAudit] = useState<EditHistory[] | null>(null);
   const [auditTarget, setAuditTarget] = useState("");
   const guard = useRef(false);
-  useEffect(() => {
-    let active = true;
-    void listPage<CollectingEvent | Specimen>(model)
-      .then((p) => {
-        if (active) {
-          setItems(p.items);
-          setCursor(p.cursor);
-        }
-      })
-      .catch((e) => {
-        if (active) setError(errorText(e));
-      });
-    return () => {
-      active = false;
-    };
-  }, [model]);
-  const matches = (t: CollectingEvent | Specimen) =>
+  const matches = (t: CollectingEvent | Specimen, term = query) =>
     ("eventNumber" in t
-      ? `${t.eventNumber} ${t.date} ${t.localityJapaneseFull} ${t.collector}`
+      ? `${t.eventNumber} ${t.date} ${t.localityJapaneseFull} ${t.localityJapaneseShort} ${t.localityRomaji_1} ${t.localityRomaji_2} ${t.localityRomaji_3} ${t.collector}`
       : `${t.specimenNumber} ${t.memo}`
     )
       .toLowerCase()
-      .includes(query.toLowerCase());
-  const filtered = items.filter(matches);
+      .includes(term.toLowerCase());
+  const filtered = items.filter((item) => matches(item));
   async function exportItems() {
     if (!allRecords) return filtered;
     const found = new Map<string, CollectingEvent | Specimen>();
@@ -151,6 +132,32 @@ export default function Browse() {
       setBusy(false);
     }
   }
+  function searchRecords(e: FormEvent) {
+    e.preventDefault();
+    const term = searchText.trim();
+    void run(async () => {
+      setItems([]);
+      setCursor(null);
+      setQuery(term);
+      setSearchedRecords(true);
+      if (!term) {
+        const page = await listPage<CollectingEvent | Specimen>(model);
+        setItems(page.items);
+        setCursor(page.cursor);
+        return;
+      }
+      const found = new Map<string, CollectingEvent | Specimen>();
+      let next: string | null | undefined;
+      do {
+        const page = await listPage<CollectingEvent | Specimen>(model, next);
+        for (const item of page.items)
+          if (matches(item, term)) found.set(item.id, item);
+        next = page.cursor;
+        setProgress(`${found.size}件が一致・次のページを検索中…`);
+      } while (next);
+      setItems([...found.values()]);
+    });
+  }
   function editEvent(event: CollectingEvent) {
     setEditingEvent(event);
     setEventDraft(eventInput(event));
@@ -168,11 +175,12 @@ export default function Browse() {
   }
   function editIdentification() {
     const current = detail?.history[0];
+    const defaults = initialIdentification();
     setIdentificationDraft({
       japaneseName: current?.japaneseName ?? "",
       scientificName: current?.scientificName ?? "",
-      identifiedAt: current?.identifiedAt ?? "",
-      identifiedBy: current?.identifiedBy ?? "",
+      identifiedAt: defaults.identifiedAt,
+      identifiedBy: defaults.identifiedBy,
       memo: "",
     });
     setEditingIdentification(true);
@@ -262,7 +270,7 @@ export default function Browse() {
     <div className="stack">
       <div className="page-heading">
         <div>
-          <span className="eyebrow">COLLECTION / RECORDS</span>
+          <span className="eyebrow">04 / COLLECTION RECORDS</span>
           <h1>データ編集・出力</h1>
           <p>
             QRや番号から標本を探し、同定・登録内容の編集とCSV出力を行います。
@@ -339,6 +347,8 @@ export default function Browse() {
                   setItems([]);
                   setCursor(null);
                   setQuery("");
+                  setSearchText("");
+                  setSearchedRecords(false);
                   setDetail(null);
                   setEditingEvent(null);
                   setEventDraft(null);
@@ -352,21 +362,28 @@ export default function Browse() {
               </button>
             ))}
           </div>
-          <span className="badge">読み込み済み {items.length}件</span>
+          <span className="badge">
+            {searchedRecords ? `検索結果 ${items.length}件` : "検索前"}
+          </span>
         </div>
-        <Field
-          label={
-            model === "CollectionRecord"
-              ? "読み込み済みデータを検索（番号・日付・採集地・採集者）"
-              : "読み込み済みデータを検索（標本番号・メモ）"
-          }
-        >
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="検索語を入力"
-          />
-        </Field>
+        <form className="stack" onSubmit={searchRecords}>
+          <Field
+            label={
+              model === "CollectionRecord"
+                ? "採集イベントを検索（番号・日付・採集地・採集者）"
+                : "標本を検索（標本番号・メモ）"
+            }
+          >
+            <input
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              placeholder="検索語を入力。空欄なら一覧を表示"
+            />
+          </Field>
+          <button className="secondary" type="submit" disabled={busy}>
+            {busy ? progress || "検索中…" : "検索"}
+          </button>
+        </form>
         {model === "Specimen" && (
           <label className="checkbox">
             <input
@@ -393,7 +410,9 @@ export default function Browse() {
         </small>
         <button
           className="secondary"
-          disabled={busy || (!allRecords && !filtered.length)}
+          disabled={
+            busy || !searchedRecords || (!allRecords && !filtered.length)
+          }
           onClick={() =>
             void run(async () => {
               const exportRows = await exportItems();
@@ -506,33 +525,39 @@ export default function Browse() {
               ? "該当する全データをCSV出力"
               : `読み込み済みの ${filtered.length} 件をCSV出力`}
         </button>
-        {!filtered.length && (
+        {!searchedRecords ? (
           <div className="empty">
-            表示できるデータはありません。次のページがある場合は読み込んでください。
+            検索すると記録を読み込みます。空欄で検索すると一覧を表示します。
           </div>
-        )}
+        ) : !filtered.length ? (
+          <div className="empty">該当するデータはありません。</div>
+        ) : null}
         {filtered.map((item) =>
           "eventNumber" in item ? (
-            <div key={item.id} className="stack browse-item">
-              <EventSummary event={item} />
-              <div className="toolbar">
-                <button
-                  type="button"
-                  className="secondary"
-                  disabled={busy}
-                  onClick={() => editEvent(item)}
-                >
-                  この採集イベントを編集
-                </button>
-                <button
-                  type="button"
-                  className="secondary"
-                  disabled={busy}
-                  onClick={() => showAudit("CollectionRecord", item.id)}
-                >
-                  変更履歴
-                </button>
-              </div>
+            <div key={item.id} className="browse-item">
+              <EventSummary
+                event={item}
+                actions={
+                  <>
+                    <button
+                      type="button"
+                      className="secondary"
+                      disabled={busy}
+                      onClick={() => editEvent(item)}
+                    >
+                      この採集イベントを編集
+                    </button>
+                    <button
+                      type="button"
+                      className="secondary"
+                      disabled={busy}
+                      onClick={() => showAudit("CollectionRecord", item.id)}
+                    >
+                      変更履歴
+                    </button>
+                  </>
+                }
+              />
             </div>
           ) : (
             <button
@@ -592,6 +617,8 @@ export default function Browse() {
                     type={key === "date" ? "date" : "text"}
                     required={
                       key === "localityJapaneseFull" ||
+                      key === "localityRomaji_1" ||
+                      key === "localityRomaji_2" ||
                       key === "collector" ||
                       key === "date"
                     }

@@ -41,6 +41,12 @@ const text = (p: Row, key: string, required = false) => {
     throw new Error(`${key}: 入力内容を確認してください。`);
   return result;
 };
+const labelLine = (p: Row, line: 1 | 2, required: boolean) => {
+  const value = text(p, `localityRomaji_${line}`);
+  if (required && !value)
+    throw new Error(`ラベル${line}行目（ローマ字）を入力してください。`);
+  return value;
+};
 const num = (p: Row, key: string) => numberValue(p[key] as number);
 function date(p: Row, key: string, required = false) {
   const value = text(p, key, required);
@@ -331,8 +337,8 @@ export async function handler(request: Request) {
       location: text(p, "localityJapaneseFull", true),
       locationLabel: text(p, "localityJapaneseShort"),
       locationRomaji: text(p, "localityRomaji"),
-      localityRomaji_1: text(p, "localityRomaji_1"),
-      localityRomaji_2: text(p, "localityRomaji_2"),
+      localityRomaji_1: labelLine(p, 1, !legacy),
+      localityRomaji_2: labelLine(p, 2, !legacy),
       localityRomaji_3: text(p, "localityRomaji_3"),
       latitude: roundCoordinate(optionalNumber(p, "latitude", -90, 90)),
       longitude: roundCoordinate(optionalNumber(p, "longitude", -180, 180)),
@@ -377,8 +383,8 @@ export async function handler(request: Request) {
             location: text(p, "localityJapaneseFull", true),
             locationLabel: text(p, "localityJapaneseShort"),
             locationRomaji: text(p, "localityRomaji"),
-            localityRomaji_1: text(p, "localityRomaji_1"),
-            localityRomaji_2: text(p, "localityRomaji_2"),
+            localityRomaji_1: labelLine(p, 1, true),
+            localityRomaji_2: labelLine(p, 2, true),
             localityRomaji_3: text(p, "localityRomaji_3"),
             latitude: roundCoordinate(optionalNumber(p, "latitude", -90, 90)),
             longitude: roundCoordinate(

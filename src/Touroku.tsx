@@ -7,13 +7,15 @@ import {
   registerSpecimen,
 } from "./api/workflow";
 import {
-  emptyIdentification,
   numberValue,
   parseQr,
   type SpecimenDetail,
   type IdentificationInput,
 } from "./domain";
-import { nextIdentification } from "./registrationDefaults";
+import {
+  initialIdentification,
+  nextIdentification,
+} from "./registrationDefaults";
 import { EventSummary, Field, IdentificationFields, Notice } from "./ui";
 export default function Touroku({
   reidentify = false,
@@ -23,9 +25,7 @@ export default function Touroku({
   const [eventNumber, setEventNumber] = useState("");
   const [specimenNumber, setSpecimenNumber] = useState("");
   const [detail, setDetail] = useState<SpecimenDetail | null>(null);
-  const [identification, setIdentification] = useState({
-    ...emptyIdentification,
-  });
+  const [identification, setIdentification] = useState(initialIdentification);
   const [sex, setSex] = useState("unexamined");
   const [memo, setMemo] = useState("");
   const [camera, setCamera] = useState(false);
@@ -159,6 +159,9 @@ export default function Touroku({
     <div className="stack registration-page">
       <div className="page-heading">
         <div>
+          {!reidentify && (
+            <span className="eyebrow">03 / SPECIMEN REGISTRATION</span>
+          )}
           <h1>{reidentify ? "同定履歴を追加" : "標本を登録"}</h1>
           <p>
             {reidentify
@@ -279,9 +282,7 @@ export default function Touroku({
                   <button
                     type="button"
                     className="secondary"
-                    onClick={() =>
-                      setIdentification({ ...emptyIdentification })
-                    }
+                    onClick={() => setIdentification(initialIdentification())}
                   >
                     名前をクリア
                   </button>

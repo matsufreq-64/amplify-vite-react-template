@@ -4,7 +4,6 @@ import { findEvent, listPage, reserveLabels } from "./api/workflow";
 import { numberValue, type CollectingEvent, type LabelBatch } from "./domain";
 import { EventSummary, Field, Notice } from "./ui";
 import { downloadLabels, loadLabelTemplate } from "./printing/labels";
-import { labelDate } from "./printing/date";
 import { matchesEvent, searchEventPages } from "./eventSearch";
 export default function Labels() {
   const [number, setNumber] = useState("");
@@ -19,6 +18,7 @@ export default function Labels() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [showTemplateInfo, setShowTemplateInfo] = useState(false);
 
   const guard = useRef(false);
   useEffect(() => {
@@ -226,35 +226,28 @@ export default function Labels() {
           <p>
             <strong>qr_label_template.xlsm</strong>
           </p>
-          <p className="muted">
-            添付いただいたテンプレートの書式・行高・列幅・用紙設定を使います。横2枚×縦10段で、20枚を超える場合は次のページへ続きます。
-          </p>
-          <div className="label-preview">
-            <div>
-              <strong>
-                {event?.localityRomaji_1
-                  ? /^Japan\s*:/i.test(event.localityRomaji_1.trim())
-                    ? event.localityRomaji_1
-                    : `Japan: ${event.localityRomaji_1}`
-                  : "Japan: Aichi-ken,"}
-              </strong>
-              <span>{event?.localityRomaji_2 || "ラベル2行目"}</span>
-              <span>{event?.localityRomaji_3 || "ラベル3行目"}</span>
-              <span>{event?.localityJapaneseShort || "採集地（日本語）"}</span>
-              <small>
-                {event ? labelDate(event.date) : "05-IX-2026"} /{" "}
-                {event?.collector || "採集者"}
-              </small>
+          <button
+            className="secondary"
+            type="button"
+            aria-expanded={showTemplateInfo}
+            aria-controls="template-info"
+            onClick={() => setShowTemplateInfo((current) => !current)}
+          >
+            {showTemplateInfo ? "説明を閉じる" : "テンプレートの説明を表示"}
+          </button>
+          {showTemplateInfo && (
+            <div id="template-info" className="stack">
+              <p className="muted">
+                指定のExcelテンプレートの書式・行高・列幅・用紙設定を使います。横2枚×縦10段で、20枚を超える場合は次のページへ続きます。
+              </p>
+              <p className="muted">
+                ラベル用ローマ字の3行は各入力欄に対応し、未入力の行は空欄になります。緯度・経度は小数第4位まで印刷します。
+              </p>
+              <p className="muted">
+                出力は .xlsm です。QRは画像として埋め込まれます。印刷倍率100%で試し刷りしてください。
+              </p>
             </div>
-            <span className="qr-placeholder">QR</span>
-          </div>
-          <small>
-            上図は項目の見本です。ローマ字の3行は各入力欄に対応し、未入力の行は空欄になります。緯度・経度は小数第4位まで印刷します。
-          </small>
-          <p className="muted">
-            出力は .xlsm
-            です。QRは画像として埋め込むため、印刷のためにマクロを実行する必要はありません。印刷倍率100%で試し刷りしてください。
-          </p>
+          )}
         </section>
       </div>
       <section className="panel stack">

@@ -1,12 +1,14 @@
 import { errorText } from "./errors";
-import { useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import CollectionMap from "./components/CollectionMap";
 import { fetchElevation, fetchHeartRailsPlace } from "./api/location";
 import { createEvent } from "./api/workflow";
 import type { CollectingEvent, EventInput } from "./domain";
+import type { Position } from "./types";
 import { Field, Notice, EventSummary } from "./ui";
 import {
   getDefaultCollector,
+  getUseCurrentLocation,
   roundAltitude,
   roundCoordinate,
 } from "./registrationDefaults";
@@ -32,9 +34,47 @@ export default function App() {
   const [locating, setLocating] = useState(false);
   const [error, setError] = useState("");
   const [mapError, setMapError] = useState("");
+  const [mapCenter, setMapCenter] = useState<Position | null>(null);
+  const [locationHint, setLocationHint] = useState("");
   const [saved, setSaved] = useState<CollectingEvent | null>(null);
   const generation = useRef(0);
   const saving = useRef(false);
+  const selectedMapPosition = useRef(false);
+  useEffect(() => {
+    if (!getUseCurrentLocation()) return;
+    if (!navigator.geolocation) {
+      setLocationHint(
+        "現在位置を取得できません。地図から地点を選択してください。",
+      );
+      return;
+    }
+    let active = true;
+    setLocationHint("現在位置を確認しています…");
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        if (!active) return;
+        if (!selectedMapPosition.current) {
+          setMapCenter({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          });
+          setLocationHint(
+            "現在位置を中心に地図を表示しています。採集地点は地図上で選んでください。",
+          );
+        } else setLocationHint("");
+      },
+      () => {
+        if (active)
+          setLocationHint(
+            "現在位置を取得できませんでした。地図から地点を選択してください。",
+          );
+      },
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 },
+    );
+    return () => {
+      active = false;
+    };
+  }, []);
   function update<K extends keyof EventInput>(key: K, value: EventInput[K]) {
     generation.current++;
     setLocating(false);
@@ -42,6 +82,7 @@ export default function App() {
   }
   async function selectPosition(latitude: number, longitude: number) {
     if (saving.current) return;
+    selectedMapPosition.current = true;
     const gen = ++generation.current;
     setForm((v) => ({
       ...v,
@@ -102,9 +143,9 @@ export default function App() {
         <div>
           <span className="eyebrow">01 / COLLECTING EVENT</span>
           <h1>採集イベントを記録</h1>
-          <p>採集した場所と日時を、標本の出発点に。</p>
+          <p>採集の内容を記録します。</p>
         </div>
-        <span className="badge">番号は保存時に自動発行</span>
+        {/* <span className="badge">番号は保存時に自動発行</span> */}
       </div>
       <Notice
         error={error}
@@ -122,6 +163,7 @@ export default function App() {
             地図上を選択するか、右のフォームに直接入力してください。
           </p>
           <CollectionMap
+            centerPosition={mapCenter}
             selectedPosition={
               form.latitude != null && form.longitude != null
                 ? { latitude: form.latitude, longitude: form.longitude }
@@ -129,6 +171,7 @@ export default function App() {
             }
             onSelect={selectPosition}
           />
+          {locationHint && <small role="status">{locationHint}</small>}
           <small>地図：国土地理院 / 地名：HeartRails・国土交通省</small>
           {locating && <p role="status">地点情報を取得しています…</p>}
           <Notice error={mapError} />
@@ -153,7 +196,7 @@ export default function App() {
               />
             </Field>
             <fieldset className="stack">
-              <legend>データラベル用の採集地（ローマ字・任意）</legend>
+              <legend>データラベル用の採集地（ローマ字・1・2行目必須）</legend>
               <small>
                 地図を選ぶと、国・都道府県／市区町村／細かい地名を3行に入力します。読み方や改行位置は修正できます。
               </small>
@@ -164,9 +207,13 @@ export default function App() {
                   "localityRomaji_3",
                 ] as const
               ).map((key, index) => (
-                <Field key={key} label={`ラベル${index + 1}行目（ローマ字）`}>
+                <Field
+                  key={key}
+                  label={`ラベル${index + 1}行目（ローマ字）${index < 2 ? " *" : ""}`}
+                >
                   <input
                     name={key}
+                    required={index < 2}
                     value={form[key] ?? ""}
                     onChange={(e) => update(key, e.target.value)}
                   />
