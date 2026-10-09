@@ -25,7 +25,8 @@
     "react": "~18.3.1",
     "react-dom": "~18.3.1",
     "react-leaflet": "^4.2.1",
-    "wanakana": "^5.3.1"
+    "wanakana": "^5.3.1",
+    "zxing-wasm": "^3.1.5"
   },
   "engines": {
     "node": ">= 20.20.0",

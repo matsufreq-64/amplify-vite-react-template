@@ -410,6 +410,68 @@ fieldset {
 .qr-scanner > div {
   border-radius: 6px;
 }
+.trial-code-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+}
+.trial-code-grid > div {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+}
+.trial-code-grid img {
+  width: 10mm;
+  height: 10mm;
+  image-rendering: pixelated;
+}
+.trial-video {
+  display: block;
+  width: 100%;
+  min-height: 180px;
+  max-height: 420px;
+  object-fit: contain;
+  background: #152721;
+  border-radius: 8px;
+}
+.trial-print-sheet {
+  display: none;
+}
+@media print {
+  .app-shell:has(.microqr-test) .sidebar,
+  .app-shell:has(.microqr-test) .topbar,
+  .app-shell:has(.microqr-test) footer,
+  .microqr-test .trial-screen {
+    display: none !important;
+  }
+  .app-shell:has(.microqr-test) .workspace,
+  .app-shell:has(.microqr-test) .main-content {
+    display: block;
+    margin: 0;
+    padding: 0;
+  }
+  .microqr-test .trial-print-sheet {
+    display: block;
+    padding: 12mm;
+    color: #000;
+    background: #fff;
+  }
+  .trial-print-row {
+    display: flex;
+    align-items: center;
+    gap: 15mm;
+    margin: 12mm 0;
+    page-break-inside: avoid;
+  }
+  .trial-print-row > div {
+    display: grid;
+    gap: 2mm;
+  }
+  .trial-print-row img {
+    display: block;
+    image-rendering: pixelated;
+  }
+}
 .section-heading,
 .toolbar,
 .specimen-strip {

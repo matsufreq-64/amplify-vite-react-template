@@ -7,6 +7,7 @@ const Labels = lazy(() => import("./Labels"));
 const Taxa = lazy(() => import("./Taxa"));
 const Browse = lazy(() => import("./Browse"));
 const Settings = lazy(() => import("./Settings"));
+const MicroQrTrial = lazy(() => import("./MicroQrTrial"));
 const modes = [
   {
     id: "collection",
@@ -37,6 +38,12 @@ const modes = [
     label: "名前辞書",
     icon: "Aa",
     description: "和名・学名の入力を補助",
+  },
+  {
+    id: "micro-qr-trial",
+    label: "マイクロQR試験",
+    icon: "QR",
+    description: "小型ラベルの読み取りを試す",
   },
   {
     id: "settings",
@@ -118,6 +125,7 @@ export default function ModeRouter() {
             {mode === "labels" && <Labels />}
             {mode === "taxa" && <Taxa />}
             {mode === "browse" && <Browse />}
+            {mode === "micro-qr-trial" && <MicroQrTrial />}
             {mode === "settings" && <Settings />}
           </Suspense>
         </main>
