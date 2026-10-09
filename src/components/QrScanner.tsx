@@ -44,7 +44,7 @@ export default function QrScanner({
     <div className="qr-scanner">
       <div id={id} />
       <small>
-        映像は左右反転で表示しています。QRの内容はそのまま読み取ります。
+        カメラ映像は左右反転せずに表示します。
       </small>
     </div>
   );

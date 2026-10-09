@@ -401,9 +401,6 @@ fieldset {
   width: 100%;
   overflow: hidden;
 }
-.qr-scanner video {
-  transform: scaleX(-1);
-}
 .qr-scanner img {
   max-width: 100%;
 }

@@ -1,14 +1,16 @@
 import { errorText } from "./errors";
-import { useId, useRef, useState, type FormEvent } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import QrScanner from "./components/QrScanner";
 import {
   addIdentification,
+  findEvent,
   lookupSpecimen,
   registerSpecimen,
 } from "./api/workflow";
 import {
   numberValue,
   parseQr,
+  type CollectingEvent,
   type SpecimenDetail,
   type IdentificationInput,
 } from "./domain";
@@ -25,6 +27,9 @@ export default function Touroku({
   const [eventNumber, setEventNumber] = useState("");
   const [specimenNumber, setSpecimenNumber] = useState("");
   const [detail, setDetail] = useState<SpecimenDetail | null>(null);
+  const [previewEvent, setPreviewEvent] = useState<CollectingEvent | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState("");
   const [identification, setIdentification] = useState(initialIdentification);
   const [sex, setSex] = useState("unexamined");
   const [memo, setMemo] = useState("");
@@ -41,6 +46,43 @@ export default function Touroku({
   const specimenInput = useRef<HTMLInputElement>(null);
   const generation = useRef(0);
   const saving = useRef(false);
+  useEffect(() => {
+    const value = eventNumber.trim();
+    if (!/^\d{1,8}$/.test(value) || Number(value) < 1) {
+      setPreviewEvent(null);
+      setPreviewLoading(false);
+      setPreviewError("");
+      return;
+    }
+    if (detail?.event.eventNumber === Number(value)) {
+      setPreviewEvent(detail.event);
+      setPreviewLoading(false);
+      setPreviewError("");
+      return;
+    }
+    let active = true;
+    setPreviewLoading(true);
+    setPreviewError("");
+    const timer = window.setTimeout(() => {
+      void findEvent(Number(value))
+        .then((event) => {
+          if (active) setPreviewEvent(event);
+        })
+        .catch((cause) => {
+          if (active) {
+            setPreviewEvent(null);
+            setPreviewError(errorText(cause));
+          }
+        })
+        .finally(() => {
+          if (active) setPreviewLoading(false);
+        });
+    }, 400);
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [eventNumber, detail]);
   const reset = (next = false) => {
     generation.current++;
     setDetail(null);
@@ -149,6 +191,7 @@ export default function Touroku({
   const canSave =
     !!detail &&
     (reidentify ? !!detail.specimen : !detail.specimen && detail.issued);
+  const displayEvent = detail?.event ?? previewEvent;
   function nextSpecimen(useCamera: boolean) {
     reset(true);
     setSpecimenNumber("");
@@ -208,6 +251,8 @@ export default function Touroku({
                     value={eventNumber}
                     onChange={(e) => {
                       reset();
+                      setPreviewEvent(null);
+                      setPreviewError("");
                       setEventNumber(e.target.value);
                     }}
                     placeholder="例：2"
@@ -229,28 +274,34 @@ export default function Touroku({
               </div>
             </fieldset>
           </form>
-          {detail ? (
+          {displayEvent ? (
             <div className="registration-event">
-              <span className="badge">
-                {detail.specimen
-                  ? "登録済み"
-                  : detail.issued
-                    ? "確認済み・登録できます"
-                    : "未発行"}
-              </span>
+              {detail && (
+                <span className="badge">
+                  {detail.specimen
+                    ? "登録済み"
+                    : detail.issued
+                      ? "確認済み・登録できます"
+                      : "未発行"}
+                </span>
+              )}
               <p>
-                {detail.event.localityJapaneseFull}
+                {displayEvent.localityJapaneseFull}
                 <br />
-                {detail.event.date} / {detail.event.collector}
+                {displayEvent.date} / {displayEvent.collector}
+                <br />
+                採集方法：{displayEvent.method || "未入力"}
               </p>
               <details>
                 <summary>採集情報の詳細</summary>
-                <EventSummary event={detail.event} />
+                <EventSummary event={displayEvent} />
               </details>
             </div>
           ) : (
-            <small>
-              番号を確認すると、採集地・採集日がここに表示されます。
+            <small role="status">
+              {previewLoading
+                ? "採集イベントを検索しています…"
+                : previewError || "採集イベント番号を入力すると、採集地・採集日・採集方法がここに表示されます。"}
             </small>
           )}
         </section>
