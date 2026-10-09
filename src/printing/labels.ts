@@ -1,6 +1,7 @@
 import type { CollectingEvent, LabelBatch } from "../domain";
 import { makeQr, numberValue } from "../domain";
 import type JSZip from "jszip";
+import { labelDate } from "./date";
 
 export const LABEL_TEMPLATE_FILE = "qr_label_template_v1.xlsm";
 export const LABELS_PER_PAGE = 20;
@@ -86,7 +87,7 @@ function valuesFor(
     longitude:
       event.longitude == null ? "" : Math.abs(event.longitude).toFixed(4),
     altitude: event.altitude == null ? "" : String(event.altitude),
-    date: event.date,
+    date: labelDate(event.date),
     collector: event.collector,
     method: event.method,
     CE: String(event.eventNumber),
@@ -119,6 +120,11 @@ function fillText(
   }
   if (source.includes("$localityRomaji_1$") && !values.localityRomaji_1)
     value = "";
+  else if (
+    source.includes("$localityRomaji_1$") &&
+    /^Japan\s*:/i.test(values.localityRomaji_1.trim())
+  )
+    value = values.localityRomaji_1.trim();
   if (source.includes("$localityRomaji_2$") && !values.localityRomaji_2)
     value = "";
   return value;

@@ -1,5 +1,5 @@
 import { errorText } from "./errors";
-import { useRef, useState, type FormEvent } from "react";
+import { useId, useRef, useState, type FormEvent } from "react";
 import QrScanner from "./components/QrScanner";
 import {
   addIdentification,
@@ -36,6 +36,8 @@ export default function Touroku({
   const [carryName, setCarryName] = useState(true);
   const [lastSaved, setLastSaved] = useState<IdentificationInput | null>(null);
   const [registeredCount, setRegisteredCount] = useState(0);
+  const lookupFormId = useId();
+  const registerFormId = useId();
   const specimenInput = useRef<HTMLInputElement>(null);
   const generation = useRef(0);
   const saving = useRef(false);
@@ -184,6 +186,7 @@ export default function Touroku({
           </button>
           {camera && <QrScanner onScan={scan} />}
           <form
+            id={lookupFormId}
             onSubmit={(e) => {
               e.preventDefault();
               setCamera(false);
@@ -221,9 +224,6 @@ export default function Touroku({
                   />
                 </Field>
               </div>
-              <button type="submit" className="secondary">
-                {busy ? "処理しています…" : "採集情報・登録状態を確認"}
-              </button>
             </fieldset>
           </form>
           {detail ? (
@@ -251,7 +251,7 @@ export default function Touroku({
             </small>
           )}
         </section>
-        <form className="panel stack" onSubmit={submit}>
+        <form id={registerFormId} className="panel stack" onSubmit={submit}>
           <h2>2. {reidentify ? "新しい同定" : "和名・標本情報"}</h2>
           <fieldset
             className="stack"
@@ -310,38 +310,51 @@ export default function Touroku({
               次の標本に和名・学名を引き継ぐ
             </label>
           )}
-          <Notice error={error} message={message} />
-          {complete ? (
-            <div className="stack registration-actions">
-              {!reidentify && (
-                <button
-                  type="button"
-                  className="primary"
-                  onClick={() => nextSpecimen(true)}
-                >
-                  次のQRを読み取る
-                </button>
-              )}
+        </form>
+      </div>
+      <section className="registration-dock stack" aria-label="確認と登録">
+        <Notice error={error} message={message} />
+        {complete ? (
+          <div className="stack registration-actions">
+            {!reidentify && (
               <button
                 type="button"
-                className={reidentify ? "primary" : "secondary"}
-                onClick={() => nextSpecimen(false)}
+                className="primary"
+                onClick={() => nextSpecimen(true)}
               >
-                次の標本番号を入力
+                次のQRを読み取る
               </button>
-            </div>
-          ) : (
-            <>
-              <small>
-                {!detail
-                  ? "先にQR・番号を確認してください。和名は先に入力できます。"
-                  : !canSave
-                    ? "この標本は登録できません。確認結果をご覧ください。"
-                    : reidentify
-                      ? "以前の履歴を残して同定を追加します。"
-                      : "和名・学名が空欄なら未同定として登録します。"}
-              </small>
+            )}
+            <button
+              type="button"
+              className={reidentify ? "primary" : "secondary"}
+              onClick={() => nextSpecimen(false)}
+            >
+              次の標本番号を入力
+            </button>
+          </div>
+        ) : (
+          <>
+            <small>
+              {!detail
+                ? "先にQR・番号を確認してください。和名は先に入力できます。"
+                : !canSave
+                  ? "この標本は登録できません。確認結果をご覧ください。"
+                  : reidentify
+                    ? "以前の履歴を残して同定を追加します。"
+                    : "和名・学名が空欄なら未同定として登録します。"}
+            </small>
+            <div className="registration-button-pair">
               <button
+                type="submit"
+                form={lookupFormId}
+                className="secondary"
+                disabled={busy}
+              >
+                採集情報・登録状態を確認
+              </button>
+              <button
+                form={registerFormId}
                 type="submit"
                 className="primary"
                 disabled={
@@ -358,10 +371,10 @@ export default function Touroku({
                     ? "同定を追加する"
                     : "3. 確認して標本を登録"}
               </button>
-            </>
-          )}
-        </form>
-      </div>
+            </div>
+          </>
+        )}
+      </section>
       {detail?.specimen && (
         <details
           className="panel registration-history"

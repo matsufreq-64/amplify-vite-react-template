@@ -4,8 +4,14 @@ import { findEvent, listPage, reserveLabels } from "./api/workflow";
 import { numberValue, type CollectingEvent, type LabelBatch } from "./domain";
 import { EventSummary, Field, Notice } from "./ui";
 import { downloadLabels, loadLabelTemplate } from "./printing/labels";
+import { labelDate } from "./printing/date";
+import { matchesEvent, searchEventPages } from "./eventSearch";
 export default function Labels() {
   const [number, setNumber] = useState("");
+  const [locality, setLocality] = useState("");
+  const [date, setDate] = useState("");
+  const [results, setResults] = useState<CollectingEvent[]>([]);
+  const [searched, setSearched] = useState(false);
   const [event, setEvent] = useState<CollectingEvent | null>(null);
   const [count, setCount] = useState(12);
   const [batches, setBatches] = useState<LabelBatch[]>([]);
@@ -47,8 +53,34 @@ export default function Labels() {
   }
   function search(e: FormEvent) {
     e.preventDefault();
+    if (guard.current) return;
     setEvent(null);
-    void run(async () => setEvent(await findEvent(numberValue(number))));
+    setMessage("");
+    setResults([]);
+    setSearched(false);
+    void run(async () => {
+      if (!number.trim() && !locality.trim() && !date)
+        throw new Error(
+          "イベント番号・採集地・採集日のいずれかを入力してください。",
+        );
+      const query = { locality, date };
+      const items = number.trim()
+        ? [await findEvent(numberValue(number.trim()))].filter((item) =>
+            matchesEvent(item, query),
+          )
+        : await searchEventPages(query, (cursor) =>
+            listPage<CollectingEvent>("CollectionRecord", cursor),
+          );
+      setResults(items);
+      setSearched(true);
+      if (items.length === 1) setEvent(items[0]);
+    });
+  }
+  function clearSearch() {
+    setEvent(null);
+    setResults([]);
+    setSearched(false);
+    setMessage("");
   }
   return (
     <div className="stack">
@@ -66,25 +98,82 @@ export default function Labels() {
         <div className="stack">
           <form className="panel stack" onSubmit={search}>
             <h2>採集イベントを選択</h2>
-            <fieldset disabled={busy} className="inline-form">
+            <fieldset disabled={busy} className="stack">
               <Field label="採集イベント番号">
                 <input
-                  required
                   inputMode="numeric"
                   value={number}
                   onChange={(e) => {
                     setNumber(e.target.value);
-                    setEvent(null);
-                    setMessage("");
+                    clearSearch();
                   }}
                   placeholder="例：2"
                 />
               </Field>
+              <Field label="採集地（部分一致）">
+                <input
+                  value={locality}
+                  onChange={(e) => {
+                    setLocality(e.target.value);
+                    clearSearch();
+                  }}
+                  placeholder="例：名古屋市・Nagoya"
+                />
+              </Field>
+              <Field label="採集日">
+                <input
+                  type="date"
+                  value={date}
+                  onChange={(e) => {
+                    setDate(e.target.value);
+                    clearSearch();
+                  }}
+                />
+              </Field>
+              <small>
+                どれか1項目で検索できます。複数入力すると、すべての条件で絞り込みます。
+              </small>
               <button className="secondary" type="submit">
-                検索
+                {busy ? "検索・処理中…" : "検索"}
               </button>
             </fieldset>
           </form>
+          {searched && (
+            <section
+              className="panel stack"
+              aria-label="採集イベントの検索結果"
+            >
+              <h2>検索結果（{results.length}件）</h2>
+              {!results.length && (
+                <p>条件に一致する採集イベントがありません。</p>
+              )}
+              <div className="event-search-results">
+                {results.map((item) => (
+                  <button
+                    type="button"
+                    className="clickable"
+                    key={item.id}
+                    disabled={busy}
+                    aria-pressed={event?.id === item.id}
+                    onClick={() => {
+                      setEvent(item);
+                      setMessage("");
+                    }}
+                  >
+                    <strong>
+                      #{item.eventNumber} · {item.localityJapaneseFull}
+                    </strong>
+                    <small>
+                      {item.date} / {item.collector}
+                      {event?.id === item.id
+                        ? " · 選択中"
+                        : " · このイベントを選択"}
+                    </small>
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
           {event && (
             <>
               <EventSummary event={event} />
@@ -142,12 +231,19 @@ export default function Labels() {
           </p>
           <div className="label-preview">
             <div>
-              <strong>Japan: {event?.localityRomaji_1 || "ラベル1行目"}</strong>
+              <strong>
+                {event?.localityRomaji_1
+                  ? /^Japan\s*:/i.test(event.localityRomaji_1.trim())
+                    ? event.localityRomaji_1
+                    : `Japan: ${event.localityRomaji_1}`
+                  : "Japan: Aichi-ken,"}
+              </strong>
               <span>{event?.localityRomaji_2 || "ラベル2行目"}</span>
               <span>{event?.localityRomaji_3 || "ラベル3行目"}</span>
               <span>{event?.localityJapaneseShort || "採集地（日本語）"}</span>
               <small>
-                {event?.date || "採集日"} / {event?.collector || "採集者"}
+                {event ? labelDate(event.date) : "05-IX-2026"} /{" "}
+                {event?.collector || "採集者"}
               </small>
             </div>
             <span className="qr-placeholder">QR</span>

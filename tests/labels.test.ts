@@ -5,6 +5,7 @@ import JSZip from "jszip";
 import ExcelJS from "exceljs";
 import { buildTemplateLabels } from "../src/printing/labels";
 import type { LabelBatch } from "../src/domain";
+import { labelDate } from "../src/printing/date";
 const template = await readFile(
   new URL("../public/templates/qr_label_template_v1.xlsm", import.meta.url),
 );
@@ -38,6 +39,18 @@ async function sheetValues(bytes: Uint8Array) {
   await workbook.xlsx.load(Buffer.from(bytes));
   return workbook.worksheets[0];
 }
+test("country prefix and comma are not duplicated for new map labels", async () => {
+  const sheet = await sheetValues(
+    await buildTemplateLabels(
+      {
+        ...batch,
+        snapshot: { ...batch.snapshot, localityRomaji_1: "Japan: Aichi-ken," },
+      },
+      template,
+    ),
+  );
+  assert.equal(sheet.getCell("A1").value, "Japan: Aichi-ken,");
+});
 test("provided template fills all placeholders, anchors a distinct QR per specimen, and keeps original styles and VBA", async () => {
   const bytes = await buildTemplateLabels(batch, template);
   const zip = await JSZip.loadAsync(bytes);
@@ -47,6 +60,7 @@ test("provided template fills all placeholders, anchors a distinct QR per specim
   assert.equal(sheet.getCell("A2").value, "Nagoya-shi,");
   assert.equal(sheet.getCell("A3").value, "Atsuta-ku");
   assert.equal(sheet.getCell("A5").value, "35.1235°N, 136.9877°E, alt.10m");
+  assert.equal(sheet.getCell("A6").value, "29-IX-2026,");
   assert.equal(sheet.getCell("A7").value, "S. Matsubara leg. 灯火");
   assert.equal(sheet.getCell("B7").value, "2/103");
   assert.equal(sheet.getCell("D7").value, "2/104");
@@ -76,6 +90,31 @@ test("provided template fills all placeholders, anchors a distinct QR per specim
       drawing.includes(`descr="00000002${String(n).padStart(8, "0")}"`),
     );
   assert.match(xml, /paperSize="43"/);
+});
+
+test("label dates use Roman months without changing stored dates", () => {
+  const months = [
+    "I",
+    "II",
+    "III",
+    "IV",
+    "V",
+    "VI",
+    "VII",
+    "VIII",
+    "IX",
+    "X",
+    "XI",
+    "XII",
+  ];
+  for (let month = 1; month <= 12; month++)
+    assert.equal(
+      labelDate(`2026-${String(month).padStart(2, "0")}-05`),
+      `05-${months[month - 1]}-2026`,
+    );
+  assert.equal(labelDate("2026-09-05"), "05-IX-2026");
+  assert.equal(batch.snapshot.date, "2026-09-29");
+  assert.equal(labelDate(""), "");
 });
 test("odd quantities clear unused slots and additional pages preserve sequential numbers", async () => {
   const bytes = await buildTemplateLabels({ ...batch, count: 21 }, template);

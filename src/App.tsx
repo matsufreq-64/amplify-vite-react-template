@@ -1,6 +1,5 @@
 import { errorText } from "./errors";
 import { useRef, useState, type FormEvent } from "react";
-import { toRomaji } from "wanakana";
 import CollectionMap from "./components/CollectionMap";
 import { fetchElevation, fetchHeartRailsPlace } from "./api/location";
 import { createEvent } from "./api/workflow";
@@ -58,7 +57,9 @@ export default function App() {
           altitude: Number(altitude),
           localityJapaneseFull: place.placeName,
           localityJapaneseShort: place.placeName,
-          localityRomaji: toRomaji(place.placeNameKana),
+          localityRomaji_1: place.localityRomaji_1,
+          localityRomaji_2: place.localityRomaji_2,
+          localityRomaji_3: place.localityRomaji_3,
         }));
     } catch (e) {
       if (gen === generation.current)
@@ -146,16 +147,10 @@ export default function App() {
                 }
               />
             </Field>
-            <Field label="採集地（ローマ字）">
-              <input
-                value={form.localityRomaji}
-                onChange={(e) => update("localityRomaji", e.target.value)}
-              />
-            </Field>
             <fieldset className="stack">
               <legend>データラベル用の採集地（ローマ字・任意）</legend>
               <small>
-                上の「採集地（ローマ字）」とは別に保存します。ラベルでの改行位置に合わせて入力してください。
+                地図を選ぶと、国・都道府県／市区町村／細かい地名を3行に入力します。読み方や改行位置は修正できます。
               </small>
               {(
                 [

@@ -838,3 +838,53 @@ i {
     gap: 8px;
   }
 }
+
+.event-search-results {
+  max-height: 360px;
+  overflow-y: auto;
+}
+.event-search-results button[aria-pressed="true"] {
+  background: #edf3ed;
+  border-left: 3px solid var(--green);
+  padding-left: 12px;
+}
+.registration-dock {
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  padding: 12px 16px max(12px, env(safe-area-inset-bottom));
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #fff;
+  box-shadow: 0 -4px 16px #243c3510;
+  gap: 8px;
+}
+.registration-button-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.registration-button-pair button {
+  min-height: 52px;
+}
+.registration-dock .registration-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+@media (max-width: 700px) {
+  .registration-dock {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+  .registration-button-pair {
+    gap: 8px;
+  }
+  .registration-button-pair button {
+    padding: 10px 8px;
+    font-size: 12px;
+  }
+  .registration-dock .notice {
+    max-height: 90px;
+    overflow-y: auto;
+  }
+}
