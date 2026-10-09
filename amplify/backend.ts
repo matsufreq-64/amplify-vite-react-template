@@ -43,6 +43,7 @@ for (const name of [
   "Identification",
   "LabelBatch",
   "Taxon",
+  "EditHistory",
 ] as const) {
   const table = backend.data.resources.tables[name];
   table.grantReadWriteData(createRecordLambda);

@@ -27,16 +27,10 @@ const modes = [
     description: "QRを読み取り、実物を登録",
   },
   {
-    id: "identification",
-    label: "再同定",
-    icon: "04",
-    description: "同定履歴を追加",
-  },
-  {
     id: "browse",
-    label: "データ閲覧",
-    icon: "▤",
-    description: "登録データと履歴を確認",
+    label: "データ編集・出力",
+    icon: "04",
+    description: "QR検索・同定更新・CSV出力",
   },
   {
     id: "taxa",
@@ -127,7 +121,6 @@ export default function ModeRouter() {
           >
             {mode === "collection" && <App />}
             {mode === "specimen" && <Touroku key="register" />}
-            {mode === "identification" && <Touroku key="identify" reidentify />}
             {mode === "labels" && <Labels />}
             {mode === "taxa" && <Taxa />}
             {mode === "browse" && <Browse />}

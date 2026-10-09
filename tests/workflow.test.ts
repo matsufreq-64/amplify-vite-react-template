@@ -25,6 +25,7 @@ for (const name of [
   "Identification",
   "Taxon",
   "LabelBatch",
+  "EditHistory",
 ])
   process.env[`${name.toUpperCase()}_TABLE`] = name;
 process.env.COUNTER_TABLE_NAME = "Counter";
@@ -92,10 +93,26 @@ DynamoDBDocumentClient.prototype.send = (async (command: {
           throw e;
         }
         if (
-          put.ConditionExpression === "#owner = :owner" &&
+          put.ConditionExpression.startsWith("#owner = :owner") &&
           existing?.owner !== put.ExpressionAttributeValues[":owner"]
         )
           throw new Error("Forbidden");
+        if (
+          put.ConditionExpression.includes("#updatedAt = :previous") &&
+          existing?.updatedAt !== put.ExpressionAttributeValues[":previous"]
+        )
+          throw Object.assign(new Error("Stale revision"), {
+            name: "TransactionCanceledException",
+          });
+        if (
+          put.ConditionExpression.includes(
+            "attribute_not_exists(#updatedAt)",
+          ) &&
+          existing?.updatedAt !== undefined
+        )
+          throw Object.assign(new Error("Stale revision"), {
+            name: "TransactionCanceledException",
+          });
       }
       for (const item of p.TransactItems)
         rows(item.Put.TableName).set(
@@ -487,5 +504,133 @@ test("server rounds new coordinates to four decimals and altitude to whole metre
       latitude: 90.00001,
       requestId: "coordinate-invalid-001",
     }),
+  );
+});
+
+test("event edits commit a durable before/after history and preserve issued label snapshots", async () => {
+  const { event, batch } = await setup();
+  const input = {
+    ...eventInput,
+    localityJapaneseFull: "愛知県豊橋市",
+    collector: "New collector",
+    altitude: 10.7,
+  };
+  const saved = (await call("updateEvent", {
+    ...input,
+    id: event.id,
+    expectedUpdatedAt: event.updatedAt,
+    requestId: "event-edit-001",
+  })) as CollectingEvent;
+  assert.equal(saved.localityJapaneseFull, "愛知県豊橋市");
+  assert.equal(saved.altitude, 11);
+  assert.equal(
+    (
+      (await call("findEvent", {
+        eventNumber: event.eventNumber,
+      })) as CollectingEvent
+    ).collector,
+    "New collector",
+  );
+  const snapshot = rows("LabelBatch").get(batch.id)?.snapshot;
+  assert.equal(
+    (typeof snapshot === "string" ? JSON.parse(snapshot) : (snapshot as Row))
+      .collector,
+    event.collector,
+  );
+  const history = (await call("editHistory", {
+    targetType: "CollectionRecord",
+    targetId: event.id,
+  })) as Row[];
+  assert.equal(history.length, 1);
+  assert.equal((history[0].before as Row).location, event.localityJapaneseFull);
+  assert.equal((history[0].after as Row).location, "愛知県豊橋市");
+  assert.deepEqual(
+    await call("updateEvent", {
+      ...input,
+      id: event.id,
+      expectedUpdatedAt: event.updatedAt,
+      requestId: "event-edit-001",
+    }),
+    saved,
+  );
+  assert.equal(rows("EditHistory").size, 1);
+  await assert.rejects(
+    call("updateEvent", {
+      ...input,
+      collector: "Other",
+      id: event.id,
+      expectedUpdatedAt: event.updatedAt,
+      requestId: "event-edit-002",
+    }),
+    /再読込/,
+  );
+  await assert.rejects(
+    call(
+      "editHistory",
+      { targetType: "CollectionRecord", targetId: event.id },
+      "other-user",
+    ),
+  );
+});
+
+test("specimen edits retain number and event link, reject failed transactions and record history", async () => {
+  const { event, batch } = await setup();
+  const specimen = (await call("registerSpecimen", {
+    eventNumber: event.eventNumber,
+    specimenNumber: batch.firstNumber,
+    sex: "unknown",
+    memo: "old",
+    identification: {},
+    requestId: "specimen-request-001",
+  })) as Specimen;
+  failTransaction = true;
+  await assert.rejects(
+    call("updateSpecimen", {
+      id: specimen.id,
+      expectedUpdatedAt: specimen.updatedAt,
+      sex: "female",
+      memo: "new",
+      requestId: "specimen-edit-001",
+    }),
+  );
+  assert.equal(rows("EditHistory").size, 0);
+  const saved = (await call("updateSpecimen", {
+    id: specimen.id,
+    expectedUpdatedAt: specimen.updatedAt,
+    sex: "female",
+    memo: "new",
+    requestId: "specimen-edit-001",
+  })) as Specimen;
+  assert.equal(saved.specimenNumber, specimen.specimenNumber);
+  assert.equal(saved.collectingEventId, event.id);
+  assert.equal(saved.sex, "female");
+  assert.equal(
+    (
+      (await call("editHistory", {
+        targetType: "Specimen",
+        targetId: specimen.id,
+      })) as Row[]
+    ).length,
+    1,
+  );
+  await assert.rejects(
+    call("updateSpecimen", {
+      id: specimen.id,
+      expectedUpdatedAt: saved.updatedAt,
+      sex: "female",
+      memo: "new",
+      requestId: "specimen-edit-002",
+    }),
+    /変更された項目/,
+  );
+  await assert.rejects(
+    call("updateSpecimen", {
+      id: specimen.id,
+      expectedUpdatedAt: saved.updatedAt,
+      sex: "invalid",
+      memo: "new",
+      requestId: "specimen-edit-003",
+    }),
+    /性別/,
   );
 });

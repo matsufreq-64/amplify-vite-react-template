@@ -4,6 +4,7 @@ import type { Schema } from "../../amplify/data/resource";
 import type {
   CollectingEvent,
   EventInput,
+  EditHistory,
   Identification,
   IdentificationInput,
   LabelBatch,
@@ -75,6 +76,29 @@ export const findEvent = (eventNumber: number) =>
   call<CollectingEvent>("findEvent", { eventNumber });
 export const createEvent = (input: EventInput) =>
   call<CollectingEvent>("createEvent", input, true);
+export const updateEvent = (event: CollectingEvent, input: EventInput) =>
+  call<CollectingEvent>(
+    "updateEvent",
+    { id: event.id, expectedUpdatedAt: event.updatedAt ?? null, ...input },
+    true,
+  );
+export const updateSpecimen = (
+  specimen: Specimen,
+  input: { sex: string; memo: string },
+) =>
+  call<Specimen>(
+    "updateSpecimen",
+    {
+      id: specimen.id,
+      expectedUpdatedAt: specimen.updatedAt ?? null,
+      ...input,
+    },
+    true,
+  );
+export const listEditHistory = (
+  targetType: "CollectionRecord" | "Specimen",
+  targetId: string,
+) => call<EditHistory[]>("editHistory", { targetType, targetId });
 export const reserveLabels = (eventNumber: number, count: number) =>
   call<LabelBatch>("reserveLabels", { eventNumber, count }, true);
 export const lookupSpecimen = (specimenNumber: number, eventNumber?: number) =>

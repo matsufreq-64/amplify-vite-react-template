@@ -79,6 +79,7 @@ const owned = (row: Row | undefined, owner: string) => {
 function eventView(r: Row): CollectingEvent {
   return {
     id: String(r.id),
+    updatedAt: r.updatedAt as string | undefined,
     eventNumber: Number(r.recordNumber),
     localityJapaneseFull: String(r.location),
     localityJapaneseShort: String(r.locationLabel ?? ""),
@@ -271,6 +272,42 @@ export async function handler(request: Request) {
         : null,
     };
   }
+  if (action === "editHistory") {
+    const targetType = text(p, "targetType");
+    if (targetType !== "CollectionRecord" && targetType !== "Specimen")
+      throw new Error("履歴の対象が不正です。");
+    const targetId = text(p, "targetId", true);
+    owned(await get(targetType, targetId), owner);
+    const matches: Row[] = [];
+    let key: Row | undefined;
+    do {
+      const page = await db.send(
+        new ScanCommand({
+          TableName: table("EditHistory"),
+          Limit: 60,
+          ExclusiveStartKey: key,
+          FilterExpression: "#owner = :owner OR #owner = :sub",
+          ExpressionAttributeNames: { "#owner": "owner" },
+          ExpressionAttributeValues: {
+            ":owner": owner,
+            ":sub": request.identity.sub,
+          },
+        }),
+      );
+      matches.push(
+        ...(page.Items ?? []).filter(
+          (row) =>
+            row.targetType === targetType &&
+            row.targetId === targetId &&
+            (row.owner === owner || row.owner === request.identity?.sub),
+        ),
+      );
+      key = page.LastEvaluatedKey;
+    } while (key);
+    return matches.sort((a, b) =>
+      String(b.changedAt).localeCompare(String(a.changedAt)),
+    );
+  }
   // Durable idempotency: the result and every domain write commit together.
   const requestId = text(p, "requestId", true);
   if (!/^[\w-]{8,80}$/.test(requestId))
@@ -326,6 +363,89 @@ export async function handler(request: Request) {
       put("Counter", { id: `event:${n}`, eventId: row.id }),
     );
     result = legacy ? row : eventView(row);
+  } else if (action === "updateEvent" || action === "updateSpecimen") {
+    const model = action === "updateEvent" ? "CollectionRecord" : "Specimen";
+    const current = owned(await get(model, text(p, "id", true)), owner);
+    const expected = p.expectedUpdatedAt ?? null;
+    if (expected !== (current.updatedAt ?? null))
+      throw new Error(
+        "別の操作で更新されています。再読込してから編集してください。",
+      );
+    const changes =
+      model === "CollectionRecord"
+        ? {
+            location: text(p, "localityJapaneseFull", true),
+            locationLabel: text(p, "localityJapaneseShort"),
+            locationRomaji: text(p, "localityRomaji"),
+            localityRomaji_1: text(p, "localityRomaji_1"),
+            localityRomaji_2: text(p, "localityRomaji_2"),
+            localityRomaji_3: text(p, "localityRomaji_3"),
+            latitude: roundCoordinate(optionalNumber(p, "latitude", -90, 90)),
+            longitude: roundCoordinate(
+              optionalNumber(p, "longitude", -180, 180),
+            ),
+            altitude: roundAltitude(optionalNumber(p, "altitude")),
+            date: date(p, "date", true),
+            collector: text(p, "collector", true),
+            collectingMethod: text(p, "method"),
+            memo: text(p, "memo"),
+          }
+        : {
+            sex: text(p, "sex", true),
+            memo: text(p, "memo"),
+          };
+    if (
+      model === "Specimen" &&
+      !["unexamined", "male", "female", "unknown"].includes(String(changes.sex))
+    )
+      throw new Error("性別の値が不正です。");
+    const before = Object.fromEntries(
+      Object.keys(changes).map((key) => [key, current[key] ?? null]),
+    );
+    const after = Object.fromEntries(
+      Object.entries(changes).map(([key, value]) => [key, value ?? null]),
+    );
+    if (JSON.stringify(before) === JSON.stringify(after))
+      throw new Error("変更された項目がありません。");
+    const revision = new Date(
+      Math.max(
+        Date.now(),
+        Number.isFinite(Date.parse(String(current.updatedAt)))
+          ? Date.parse(String(current.updatedAt)) + 1
+          : 0,
+      ),
+    ).toISOString();
+    const updated = { ...current, ...changes, updatedAt: revision };
+    writes.push({
+      Put: {
+        TableName: table(model),
+        Item: updated,
+        ConditionExpression:
+          current.updatedAt === undefined
+            ? "#owner = :owner AND attribute_not_exists(#updatedAt)"
+            : "#owner = :owner AND #updatedAt = :previous",
+        ExpressionAttributeNames: {
+          "#owner": "owner",
+          "#updatedAt": "updatedAt",
+        },
+        ExpressionAttributeValues:
+          current.updatedAt === undefined
+            ? { ":owner": current.owner }
+            : { ":owner": current.owner, ":previous": current.updatedAt },
+      },
+    });
+    writes.push(
+      put("EditHistory", {
+        ...base(),
+        targetType: model,
+        targetId: String(current.id),
+        before,
+        after,
+        changedAt: now,
+        editor: request.identity.username,
+      }),
+    );
+    result = model === "CollectionRecord" ? eventView(updated) : updated;
   } else if (action === "reserveLabels") {
     const event = await eventByNumber(num(p, "eventNumber"), owner);
     const count = Number(p.count);
@@ -442,7 +562,9 @@ export async function handler(request: Request) {
     if (committed?.fingerprint === fingerprint) return committed.result;
     if (error instanceof Error && error.name === "TransactionCanceledException")
       throw new Error(
-        "登録が競合しました。同じ標本番号が登録済みでないか検索して、現物を確認してください。",
+        action.startsWith("update")
+          ? "別の操作で更新されています。再読込してから編集してください。"
+          : "登録が競合しました。同じ標本番号が登録済みでないか検索して、現物を確認してください。",
       );
     throw error;
   }

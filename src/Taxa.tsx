@@ -3,6 +3,8 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { listPage, saveTaxon } from "./api/workflow";
 import type { Taxon } from "./domain";
 import { Field, Notice } from "./ui";
+import { downloadCsv } from "./csv";
+import { parseTaxonCsv, taxonCsvExample, type TaxonImport } from "./taxonCsv";
 const fields = [
   "japaneseName",
   "scientificName",
@@ -33,6 +35,9 @@ export default function Taxa() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [importRows, setImportRows] = useState<TaxonImport[]>([]);
+  const [importName, setImportName] = useState("");
+  const [importProgress, setImportProgress] = useState("");
   const guard = useRef(false);
   useEffect(() => {
     let active = true;
@@ -74,6 +79,66 @@ export default function Taxa() {
       guard.current = false;
     }
   }
+  async function chooseCsv(file: File | undefined) {
+    setImportRows([]);
+    setImportName("");
+    setImportProgress("");
+    setError("");
+    setMessage("");
+    if (!file) return;
+    try {
+      const rows = parseTaxonCsv(await file.text());
+      if (!rows.length) throw new Error("取り込める辞書項目がありません。");
+      setImportRows(rows);
+      setImportName(file.name);
+    } catch (cause) {
+      setError(errorText(cause));
+    }
+  }
+  async function importCsv() {
+    if (guard.current || !importRows.length) return;
+    guard.current = true;
+    setBusy(true);
+    setError("");
+    setMessage("");
+    let added = 0,
+      skipped = 0;
+    try {
+      const known = new Set<string>();
+      let next: string | null | undefined;
+      do {
+        const page = await listPage<Taxon>("Taxon", next);
+        for (const taxon of page.items)
+          known.add(taxon.scientificName.normalize("NFKC").toLowerCase());
+        next = page.cursor;
+      } while (next);
+      for (const [index, input] of importRows.entries()) {
+        const key = input.scientificName.normalize("NFKC").toLowerCase();
+        if (known.has(key)) {
+          skipped++;
+          continue;
+        }
+        setImportProgress(`${index + 1} / ${importRows.length} 件を確認中`);
+        const saved = await saveTaxon(input);
+        known.add(key);
+        added++;
+        setItems((current) => [saved, ...current]);
+      }
+      setMessage(
+        `${added}件を追加し、既存の学名${skipped}件をスキップしました。`,
+      );
+      setImportRows([]);
+      setImportName("");
+    } catch (cause) {
+      setError(
+        `${added}件追加したところで停止しました。${errorText(cause)} 再実行時は同じ学名をスキップします。`,
+      );
+    } finally {
+      setImportProgress("");
+      setBusy(false);
+      guard.current = false;
+    }
+  }
   return (
     <div className="stack">
       <div className="page-heading">
@@ -84,6 +149,62 @@ export default function Taxa() {
         </div>
       </div>
       <Notice error={error} message={message} />
+      <section className="panel stack">
+        <div className="section-heading">
+          <h2>CSVから名前辞書を追加</h2>
+          <button
+            className="secondary"
+            type="button"
+            onClick={() =>
+              downloadCsv(taxonCsvExample, "name-dictionary-template.csv")
+            }
+          >
+            見本CSVをダウンロード
+          </button>
+        </div>
+        <p className="muted">
+          UTF-8のCSVを選択してください。学名は必須です。同じ学名の既存項目はスキップし、過去の同定は変更しません。
+        </p>
+        <Field label="名前辞書CSVファイル">
+          <input
+            type="file"
+            accept=".csv,text/csv"
+            disabled={busy}
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              event.target.value = "";
+              void chooseCsv(file);
+            }}
+          />
+        </Field>
+        {importRows.length > 0 && (
+          <>
+            <p>
+              {importName}：{importRows.length}件を確認しました。
+            </p>
+            <small>
+              {importRows
+                .slice(0, 3)
+                .map(
+                  (row) =>
+                    `${row.japaneseName || "和名なし"} / ${row.scientificName}`,
+                )
+                .join("、")}
+              {importRows.length > 3 ? " ほか" : ""}
+            </small>
+            <button
+              type="button"
+              className="primary"
+              disabled={busy}
+              onClick={() => void importCsv()}
+            >
+              {busy
+                ? importProgress || "確認中…"
+                : `${importRows.length}件をインポート`}
+            </button>
+          </>
+        )}
+      </section>
       <div className="two-column">
         <section className="panel stack">
           <h2>辞書を探す</h2>

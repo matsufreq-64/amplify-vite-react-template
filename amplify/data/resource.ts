@@ -89,6 +89,17 @@ const schema = a.schema({
       owner: a.string(),
     })
     .authorization((allow) => [allow.owner().to(["read"])]),
+  EditHistory: a
+    .model({
+      targetType: a.string().required(),
+      targetId: a.id().required(),
+      before: a.json().required(),
+      after: a.json().required(),
+      changedAt: a.datetime().required(),
+      editor: a.string().required(),
+      owner: a.string(),
+    })
+    .authorization((allow) => [allow.owner().to(["read"])]),
   registerCollectionRecord: a
     .mutation()
     .arguments({

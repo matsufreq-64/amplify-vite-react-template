@@ -1,5 +1,6 @@
 export type CollectingEvent = {
   id: string;
+  updatedAt?: string;
   eventNumber: number;
   localityJapaneseFull: string;
   localityJapaneseShort: string;
@@ -15,13 +16,26 @@ export type CollectingEvent = {
   method: string;
   memo: string;
 };
-export type EventInput = Omit<CollectingEvent, "id" | "eventNumber">;
+export type EventInput = Omit<
+  CollectingEvent,
+  "id" | "eventNumber" | "updatedAt"
+>;
 export type Specimen = {
   id: string;
+  updatedAt?: string;
   specimenNumber: number;
   collectingEventId: string;
   sex: string;
   memo: string;
+};
+export type EditHistory = {
+  id: string;
+  targetType: "CollectionRecord" | "Specimen";
+  targetId: string;
+  before: Record<string, unknown>;
+  after: Record<string, unknown>;
+  changedAt: string;
+  editor: string;
 };
 export type IdentificationInput = {
   japaneseName: string;
