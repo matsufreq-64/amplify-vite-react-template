@@ -33,6 +33,14 @@ test("trial reader decodes generated Micro QR and current QR payloads", async ()
     assert.equal(found?.format, format);
     assert.equal(found?.text, payload);
     assert.deepEqual(parseQr(found!.text), { eventNumber: 2, specimenNumber: 103 });
+    if (format === "QRCode") {
+      const microOnly = await readBarcodes(output.image, {
+        formats: ["MicroQRCode"],
+        tryHarder: true,
+        maxNumberOfSymbols: 1,
+      });
+      assert.equal(microOnly.find((result) => result.isValid), undefined);
+    }
   }
   assert.ok(widths[0] < widths[1], "Micro QR must use fewer modules than QR");
 });

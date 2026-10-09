@@ -3,12 +3,21 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import JSZip from "jszip";
 import ExcelJS from "exceljs";
+import { prepareZXingModule, readBarcodes } from "zxing-wasm/full";
 import { buildTemplateLabels } from "../src/printing/labels";
 import type { LabelBatch } from "../src/domain";
 import { labelDate } from "../src/printing/date";
 const template = await readFile(
-  new URL("../public/templates/qr_label_template_v1.xlsm", import.meta.url),
+  new URL("../public/templates/labels-template_v4.xlsm", import.meta.url),
 );
+await prepareZXingModule({
+  fireImmediately: true,
+  overrides: {
+    wasmBinary: new Uint8Array(await readFile(
+      new URL("../node_modules/zxing-wasm/dist/full/zxing_full.wasm", import.meta.url),
+    )),
+  },
+});
 const batch: LabelBatch = {
   id: "batch",
   collectingEventId: "event-id",
@@ -59,13 +68,13 @@ test("provided template fills all placeholders, anchors a distinct QR per specim
   assert.equal(sheet.getCell("A1").value, "Japan: Aichi Pref.,");
   assert.equal(sheet.getCell("A2").value, "Nagoya-shi,");
   assert.equal(sheet.getCell("A3").value, "Atsuta-ku");
+  assert.equal(sheet.getCell("A4").value, "名古屋市 (灯火)");
   assert.equal(sheet.getCell("A5").value, "35.1235°N, 136.9877°E, alt.10m");
-  assert.equal(sheet.getCell("A6").value, "29-IX-2026,");
-  assert.equal(sheet.getCell("A7").value, "S. Matsubara leg. 灯火");
-  assert.equal(sheet.getCell("B7").value, "2/103");
-  assert.equal(sheet.getCell("D7").value, "2/104");
-  assert.equal(sheet.getCell("B14").value, "2/105");
-  assert.equal(sheet.getCell("D14").value, "2/106");
+  assert.equal(sheet.getCell("A6").value, "29-IX-2026, S. Matsubara leg. ");
+  assert.equal(sheet.getCell("B6").value, "2/103");
+  assert.equal(sheet.getCell("D6").value, "2/104");
+  assert.equal(sheet.getCell("F6").value, "2/105");
+  assert.equal(sheet.getCell("B12").value, "2/106");
   assert.equal(sheet.getRow(1).height, 5.4);
   assert.equal(sheet.getCell("A1").font.size, 4);
   assert.equal(sheet.getImages().length, 4);
@@ -89,6 +98,18 @@ test("provided template fills all placeholders, anchors a distinct QR per specim
     assert.ok(
       drawing.includes(`descr="00000002${String(n).padStart(8, "0")}"`),
     );
+  assert.match(drawing, /<xdr:col>1<\/xdr:col>/);
+  assert.match(drawing, /<xdr:col>3<\/xdr:col>/);
+  assert.match(drawing, /<xdr:col>5<\/xdr:col>/);
+  for (let i = 1; i <= 4; i++) {
+    const png = await zip.file(`xl/media/labelQr${i}.png`)!.async("uint8array");
+    const decoded = await readBarcodes(new Blob([new Uint8Array(png)], { type: "image/png" }), {
+      formats: ["MicroQRCode"],
+      tryHarder: true,
+    });
+    assert.equal(decoded.find((result) => result.isValid)?.format, "MicroQRCode");
+    assert.equal(decoded.find((result) => result.isValid)?.text, `00000002${String(102 + i).padStart(8, "0")}`);
+  }
   assert.match(xml, /paperSize="43"/);
 });
 
@@ -116,19 +137,19 @@ test("label dates use Roman months without changing stored dates", () => {
   assert.equal(batch.snapshot.date, "2026-09-29");
   assert.equal(labelDate(""), "");
 });
-test("odd quantities clear unused slots and additional pages preserve sequential numbers", async () => {
-  const bytes = await buildTemplateLabels({ ...batch, count: 21 }, template);
+test("three-column pages clear unused slots and preserve sequential numbers", async () => {
+  const bytes = await buildTemplateLabels({ ...batch, count: 37 }, template);
   const sheet = await sheetValues(bytes);
-  assert.equal(sheet.getCell("B77").value, "2/123");
-  assert.equal(sheet.getCell("C71").value ?? "", "");
-  assert.equal(sheet.getCell("D77").value ?? "", "");
-  assert.equal(sheet.getImages().length, 21);
+  assert.equal(sheet.getCell("B83").value, "2/139");
+  assert.equal(sheet.getCell("C78").value ?? "", "");
+  assert.equal(sheet.getCell("D83").value ?? "", "");
+  assert.equal(sheet.getImages().length, 37);
   const zip = await JSZip.loadAsync(bytes);
   const xml = await zip.file("xl/worksheets/sheet1.xml")!.async("string");
-  assert.match(xml, /<brk id="70"/);
+  assert.match(xml, /<brk id="77"/);
   const max = await buildTemplateLabels({ ...batch, count: 80 }, template);
   const maxSheet = await sheetValues(max);
-  assert.equal(maxSheet.getCell("D280").value, "2/182");
+  assert.equal(maxSheet.getCell("D172").value, "2/182");
   assert.equal(maxSheet.getImages().length, 80);
 });
 test("blank lines, XML characters, zero coordinates, south/west and retries are handled without changing template", async () => {
@@ -153,7 +174,7 @@ test("blank lines, XML characters, zero coordinates, south/west and retries are 
   const second = await sheetValues(
     await buildTemplateLabels(example, template),
   );
-  assert.equal(second.getCell("B7").value, sheet.getCell("B7").value);
+  assert.equal(second.getCell("B6").value, sheet.getCell("B6").value);
   await assert.rejects(buildTemplateLabels({ ...batch, count: 0 }, template));
   await assert.rejects(buildTemplateLabels(batch, new Uint8Array([1, 2, 3])));
 });

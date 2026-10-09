@@ -12,7 +12,7 @@ export default function Labels() {
   const [results, setResults] = useState<CollectingEvent[]>([]);
   const [searched, setSearched] = useState(false);
   const [event, setEvent] = useState<CollectingEvent | null>(null);
-  const [count, setCount] = useState(12);
+  const [count, setCount] = useState(36);
   const [batches, setBatches] = useState<LabelBatch[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -227,7 +227,7 @@ export default function Labels() {
         <section className="panel stack">
           <h2>指定のExcelテンプレート</h2>
           <p>
-            <strong>qr_label_template.xlsm</strong>
+            <strong>labels-template_v4.xlsm</strong>
           </p>
           <button
             className="secondary"
@@ -241,7 +241,7 @@ export default function Labels() {
           {showTemplateInfo && (
             <div id="template-info" className="stack">
               <p className="muted">
-                指定のExcelテンプレートの書式・行高・列幅・用紙設定を使います。横2枚×縦10段で、20枚を超える場合は次のページへ続きます。
+                指定のExcelテンプレートの書式・行高・列幅・用紙設定を使います。横3枚×縦12段で、36枚を超える場合は次のページへ続きます。マイクロQRは各ラベルの右上に配置します。
               </p>
               <p className="muted">
                 ラベル用ローマ字の3行は各入力欄に対応し、未入力の行は空欄になります。緯度・経度は小数第4位まで印刷します。

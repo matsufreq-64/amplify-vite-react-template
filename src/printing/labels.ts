@@ -2,9 +2,10 @@ import type { CollectingEvent, LabelBatch } from "../domain";
 import { makeQr, numberValue } from "../domain";
 import type JSZip from "jszip";
 import { labelDate } from "./date";
+import { microQrPng } from "./microQr";
 
-export const LABEL_TEMPLATE_FILE = "qr_label_template_v1.xlsm";
-export const LABELS_PER_PAGE = 20;
+export const LABEL_TEMPLATE_FILE = "labels-template_v4.xlsm";
+export const LABELS_PER_PAGE = 36;
 const NS = "http://schemas.openxmlformats.org/";
 const XML_HEADER = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
 const escapeXml = (s: string) =>
@@ -54,12 +55,16 @@ async function inspectTemplate(bytes: ArrayBuffer | Uint8Array) {
     if (!shared.some((s) => s.includes(`$${key}$`)))
       throw new Error(`テンプレートの項目が見つかりません：${key}`);
   }
-  const firstRows = [
-    ...sheet.matchAll(/<row\b[^>]*r="([1-7])"[^>]*>[\s\S]*?<\/row>/g),
-  ].map((m) => m[0]);
-  if (firstRows.length !== 7)
-    throw new Error("テンプレートの先頭7行を読み取れませんでした。");
-  return { zip, sheet, shared, firstRows };
+  const templateRows = [
+    ...sheet.matchAll(/<row\b[^>]*\br="(\d+)"[^>]*>[\s\S]*?<\/row>/g),
+  ]
+    .map((match) => ({ number: Number(match[1]), xml: match[0] }))
+    .filter((row) => row.number <= 77);
+  if (templateRows.filter((row) => row.number <= 72).length !== 72)
+    throw new Error("テンプレートのラベル12段×6行を読み取れませんでした。");
+  if (!sheet.includes('ref="A1:F76"'))
+    throw new Error("指定テンプレートの6列レイアウトを確認できませんでした。");
+  return { zip, sheet, shared, templateRows };
 }
 export async function loadLabelTemplate(): Promise<Uint8Array> {
   const result = await fetch(
@@ -139,31 +144,39 @@ export async function buildTemplateLabels(
   numberValue(batch.eventNumber);
   numberValue(batch.firstNumber);
   numberValue(batch.firstNumber + batch.count - 1);
-  const { zip, sheet, shared, firstRows } = await inspectTemplate(template);
-  const { default: QRCode } = await import("qrcode");
-  const groups = Math.ceil(batch.count / 2);
-  const totalRows = groups * 7;
+  const { zip, sheet, shared, templateRows } = await inspectTemplate(template);
+  const pages = Math.ceil(batch.count / LABELS_PER_PAGE);
+  const totalRows = pages * 77;
   const rows: string[] = [];
-  for (let group = 0; group < groups; group++) {
-    for (let offset = 0; offset < 7; offset++) {
-      const rowNumber = group * 7 + offset + 1;
-      let row = firstRows[offset].replace(
+  for (let page = 0; page < pages; page++) {
+    for (const templateRow of templateRows) {
+      const rowNumber = page * 77 + templateRow.number;
+      let row = templateRow.xml.replace(
         /(<row\b[^>]*\br=")[^"]+"/,
         `$1${rowNumber}"`,
       );
       row = row.replace(
-        /<c\b([^>]*\br="([A-Z]+)\d+"[^>]*)(?:\/>|>([\s\S]*?)<\/c>)/g,
+        /<c\b([^>]*?\br="([A-Z]+)\d+"[^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g,
         (_cell, attrs: string, column: string, body: string | undefined) => {
-          if (!["A", "B", "C", "D"].includes(column)) return "";
+          if (!["A", "B", "C", "D", "E", "F"].includes(column)) return "";
           const cellAttrs = attrs
             .replace(/\br="[^"]+"/, `r="${column}${rowNumber}"`)
             .replace(/\s+t="[^"]*"/, "");
           const match = body?.match(/<v>(\d+)<\/v>/);
           if (!/\bt="s"/.test(attrs) || !match)
             return `<c${cellAttrs}>${body ?? ""}</c>`;
-          const index = group * 2 + (column === "C" || column === "D" ? 1 : 0);
+          const labelColumn =
+            column === "A" || column === "B"
+              ? 0
+              : column === "C" || column === "D"
+                ? 1
+                : 2;
+          const index =
+            page * LABELS_PER_PAGE +
+            Math.floor((templateRow.number - 1) / 6) * 3 +
+            labelColumn;
           const value =
-            index < batch.count
+            templateRow.number <= 72 && index < batch.count
               ? fillText(
                   shared[Number(match[1])],
                   batch.snapshot,
@@ -181,14 +194,14 @@ export async function buildTemplateLabels(
       /<sheetData>[\s\S]*?<\/sheetData>/,
       `<sheetData>${rows.join("")}</sheetData>`,
     )
-    .replace(/<dimension\b[^>]*\/>/, `<dimension ref="A1:D${totalRows}"/>`)
+    .replace(/<dimension\b[^>]*\/>/, `<dimension ref="A1:F${totalRows}"/>`)
     .replace(/<controls\b[\s\S]*?<\/controls>/g, "")
     .replace(/<legacyDrawing\b[^>]*\/>/g, "")
     .replace(/<drawing\b[^>]*\/>/g, "")
     .replace(/<rowBreaks\b[\s\S]*?<\/rowBreaks>/g, "");
   const breaks = Array.from(
-    { length: Math.floor((totalRows - 1) / 70) },
-    (_, i) => `<brk id="${(i + 1) * 70}" min="0" max="16383" man="1"/>`,
+    { length: pages - 1 },
+    (_, i) => `<brk id="${(i + 1) * 77}" min="0" max="16383" man="1"/>`,
   );
   outputSheet = outputSheet.replace(
     "</worksheet>",
@@ -209,20 +222,13 @@ export async function buildTemplateLabels(
   const imageRels: string[] = [];
   for (let i = 0; i < batch.count; i++) {
     const qr = makeQr(batch.eventNumber, batch.firstNumber + i);
-    const data = await QRCode.toDataURL([{ data: qr, mode: "numeric" }], {
-      errorCorrectionLevel: "M",
-      margin: 4,
-      width: 300,
-    });
-    zip.file(`xl/media/labelQr${i + 1}.png`, data.split(",")[1], {
-      base64: true,
-    });
+    zip.file(`xl/media/labelQr${i + 1}.png`, await microQrPng(qr));
     imageRels.push(
       `<Relationship Id="rId${i + 1}" Type="${NS}officeDocument/2006/relationships/image" Target="../media/labelQr${i + 1}.png"/>`,
     );
-    // 10mm square fits the template's B/D column and the first six 5.4pt rows.
+    // 8.5mm fits B/D/F above the number printed on each label's sixth row.
     anchors.push(
-      `<xdr:oneCellAnchor><xdr:from><xdr:col>${i % 2 ? 3 : 1}</xdr:col><xdr:colOff>12700</xdr:colOff><xdr:row>${Math.floor(i / 2) * 7}</xdr:row><xdr:rowOff>12700</xdr:rowOff></xdr:from><xdr:ext cx="360000" cy="360000"/><xdr:pic><xdr:nvPicPr><xdr:cNvPr id="${i + 1}" name="Specimen ${batch.firstNumber + i}" descr="${qr}"/><xdr:cNvPicPr><a:picLocks noChangeAspect="1"/></xdr:cNvPicPr></xdr:nvPicPr><xdr:blipFill><a:blip r:embed="rId${i + 1}"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill><xdr:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="360000" cy="360000"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic><xdr:clientData/></xdr:oneCellAnchor>`,
+      `<xdr:oneCellAnchor><xdr:from><xdr:col>${1 + (i % 3) * 2}</xdr:col><xdr:colOff>9000</xdr:colOff><xdr:row>${Math.floor(i / LABELS_PER_PAGE) * 77 + Math.floor((i % LABELS_PER_PAGE) / 3) * 6}</xdr:row><xdr:rowOff>9000</xdr:rowOff></xdr:from><xdr:ext cx="306000" cy="306000"/><xdr:pic><xdr:nvPicPr><xdr:cNvPr id="${i + 1}" name="Specimen ${batch.firstNumber + i}" descr="${qr}"/><xdr:cNvPicPr><a:picLocks noChangeAspect="1"/></xdr:cNvPicPr></xdr:nvPicPr><xdr:blipFill><a:blip r:embed="rId${i + 1}"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill><xdr:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="306000" cy="306000"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic><xdr:clientData/></xdr:oneCellAnchor>`,
     );
   }
   zip.file(
@@ -251,7 +257,7 @@ export async function buildTemplateLabels(
     /<definedName\b[^>]*name="_xlnm.Print_Area"[^>]*>[\s\S]*?<\/definedName>/g,
     "",
   );
-  const area = `<definedName name="_xlnm.Print_Area" localSheetId="0">'label_templete'!$A$1:$D$${totalRows}</definedName>`;
+  const area = `<definedName name="_xlnm.Print_Area" localSheetId="0">'label_templete'!$A$1:$F$${totalRows}</definedName>`;
   workbook = workbook.includes("</definedNames>")
     ? workbook.replace("</definedNames>", `${area}</definedNames>`)
     : workbook.replace(

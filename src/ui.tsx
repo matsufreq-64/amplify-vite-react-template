@@ -26,27 +26,28 @@ export function CollectingMethodField({
   value: string;
   onChange: (value: string) => void;
 }) {
+  const preset = value === "灯火" || value === "糖蜜";
   return (
     <div className="field">
       <span>採集方法</span>
-      <div className="method-choice">
+      <div className={`method-choice${preset ? " method-choice-preset" : ""}`}>
         <select
           aria-label="採集方法の候補"
-          value={value === "灯火" || value === "糖蜜" ? value : ""}
-          onChange={(event) => {
-            if (event.target.value) onChange(event.target.value);
-          }}
+          value={preset ? value : ""}
+          onChange={(event) => onChange(event.target.value)}
         >
-          <option value="">候補から選ぶ</option>
+          <option value="">直接入力する</option>
           <option value="灯火">灯火</option>
           <option value="糖蜜">糖蜜</option>
         </select>
-        <input
-          aria-label="採集方法を直接入力"
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          placeholder="選択または直接入力"
-        />
+        {!preset && (
+          <input
+            aria-label="採集方法を直接入力"
+            value={value}
+            onChange={(event) => onChange(event.target.value)}
+            placeholder="採集方法を入力"
+          />
+        )}
       </div>
     </div>
   );
@@ -155,6 +156,7 @@ export function IdentificationFields({
   const voice = useVoice((text) => update("japaneseName", text));
   const [candidates, setCandidates] = useState<Taxon[]>([]);
   const [error, setError] = useState("");
+  const [scientificOpen, setScientificOpen] = useState(false);
   const latest = useRef(0);
   useEffect(() => {
     const generation = ++latest.current;
@@ -193,13 +195,35 @@ export function IdentificationFields({
             placeholder="例：アオスジアゲハ"
           />
         </Field>
-        <Field label="学名">
-          <input
-            value={value.scientificName}
-            onChange={(e) => update("scientificName", e.target.value)}
-            placeholder="例：Graphium sarpedon"
-          />
-        </Field>
+        {compact ? (
+          <div className="field scientific-name-disclosure">
+            <button
+              type="button"
+              className="secondary"
+              aria-expanded={scientificOpen}
+              onClick={() => setScientificOpen((open) => !open)}
+            >
+              {scientificOpen ? "▼" : "▶"} 学名{value.scientificName ? `：${value.scientificName}` : "を入力"}
+            </button>
+            {scientificOpen && (
+              <Field label="学名">
+                <input
+                  value={value.scientificName}
+                  onChange={(e) => update("scientificName", e.target.value)}
+                  placeholder="例：Graphium sarpedon"
+                />
+              </Field>
+            )}
+          </div>
+        ) : (
+          <Field label="学名">
+            <input
+              value={value.scientificName}
+              onChange={(e) => update("scientificName", e.target.value)}
+              placeholder="例：Graphium sarpedon"
+            />
+          </Field>
+        )}
       </div>
       <div>
         <button

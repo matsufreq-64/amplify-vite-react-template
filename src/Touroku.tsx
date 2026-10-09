@@ -1,6 +1,6 @@
 import { errorText } from "./errors";
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
-import QrScanner from "./components/QrScanner";
+import MicroQrScanner from "./components/MicroQrScanner";
 import {
   addIdentification,
   findEvent,
@@ -209,7 +209,7 @@ export default function Touroku({
           <p>
             {reidentify
               ? "標本を確認して、新しい同定を記録します。"
-              : "① QR・番号で確認 → ② 和名などを入力 → ③ 登録"}
+              : "① マイクロQR・番号で確認 → ② 和名などを入力 → ③ 登録"}
           </p>
         </div>
         {!reidentify && (
@@ -218,7 +218,7 @@ export default function Touroku({
       </div>
       <div className="registration-grid">
         <section className="panel stack">
-          <h2>1. QR・番号で確認</h2>
+          <h2>1. マイクロQR・番号で確認</h2>
           <button
             type="button"
             className="scan-button"
@@ -228,9 +228,9 @@ export default function Touroku({
               setCamera((v) => !v);
             }}
           >
-            {camera ? "カメラを閉じる" : "▣ QRを読み取る"}
+            {camera ? "カメラを閉じる" : "▣ マイクロQRを読み取る"}
           </button>
-          {camera && <QrScanner onScan={scan} />}
+          {camera && <MicroQrScanner onScan={scan} />}
           <form
             id={lookupFormId}
             onSubmit={(e) => {
@@ -374,7 +374,7 @@ export default function Touroku({
                 className="primary"
                 onClick={() => nextSpecimen(true)}
               >
-                次のQRを読み取る
+                次のマイクロQRを読み取る
               </button>
             )}
             <button
@@ -389,7 +389,7 @@ export default function Touroku({
           <>
             <small>
               {!detail
-                ? "先にQR・番号を確認してください。和名は先に入力できます。"
+                ? "先にマイクロQR・番号を確認してください。和名は先に入力できます。"
                 : !canSave
                   ? "この標本は登録できません。確認結果をご覧ください。"
                   : reidentify

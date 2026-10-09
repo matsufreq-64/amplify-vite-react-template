@@ -285,6 +285,9 @@ fieldset {
   gap: 10px;
   min-width: 0;
 }
+.method-choice-preset {
+  grid-template-columns: minmax(0, 1fr);
+}
 .primary,
 .secondary,
 .scan-button {
