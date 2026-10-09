@@ -1,8 +1,8 @@
-import { toRomaji } from "wanakana";
+import { toHiragana, toRomaji } from "wanakana";
 import type { HeartRailsLocation } from "./types";
 
 const prefectures = Object.fromEntries([
-  ["北海道", "Hokkaido"],
+  ["北海道", "Hokkaidō"],
   ["青森", "Aomori"],
   ["岩手", "Iwate"],
   ["宮城", "Miyagi"],
@@ -14,7 +14,7 @@ const prefectures = Object.fromEntries([
   ["群馬", "Gunma"],
   ["埼玉", "Saitama"],
   ["千葉", "Chiba"],
-  ["東京", "Tokyo"],
+  ["東京", "Tōkyō"],
   ["神奈川", "Kanagawa"],
   ["新潟", "Niigata"],
   ["富山", "Toyama"],
@@ -27,9 +27,9 @@ const prefectures = Object.fromEntries([
   ["愛知", "Aichi"],
   ["三重", "Mie"],
   ["滋賀", "Shiga"],
-  ["京都", "Kyoto"],
-  ["大阪", "Osaka"],
-  ["兵庫", "Hyogo"],
+  ["京都", "Kyōto"],
+  ["大阪", "Ōsaka"],
+  ["兵庫", "Hyōgo"],
   ["奈良", "Nara"],
   ["和歌山", "Wakayama"],
   ["鳥取", "Tottori"],
@@ -40,12 +40,12 @@ const prefectures = Object.fromEntries([
   ["徳島", "Tokushima"],
   ["香川", "Kagawa"],
   ["愛媛", "Ehime"],
-  ["高知", "Kochi"],
+  ["高知", "Kōchi"],
   ["福岡", "Fukuoka"],
   ["佐賀", "Saga"],
   ["長崎", "Nagasaki"],
   ["熊本", "Kumamoto"],
-  ["大分", "Oita"],
+  ["大分", "Ōita"],
   ["宮崎", "Miyazaki"],
   ["鹿児島", "Kagoshima"],
   ["沖縄", "Okinawa"],
@@ -78,8 +78,10 @@ function roman(value: string) {
     .trim()
     .toLowerCase()
     .replace(/n(?=[bmp])/g, "m")
+    .replace(/ou|oo/g, "ō")
+    .replace(/uu/g, "ū")
     .replace(
-      /(^|[\s,-])([a-z])/g,
+      /(^|[\s,-])([a-zōū])/g,
       (_, prefix: string, letter: string) => prefix + letter.toUpperCase(),
     );
 }
@@ -106,18 +108,47 @@ export function localityLabels(
             ? "-fu"
             : "")
     : place.prefecture;
-  const kana = place.city_kana ?? "";
+  const kana = toHiragana(place.city_kana ?? "").trim();
+  // Split before romanization so gun + machi does not become gummachi.
+  // Require a county in the Japanese address; 郡山市 is a city, not a county.
+  const county = /^.+郡.+[町村]$/.test(place.city)
+    ? /^(.+?ぐん)(.+)$/.exec(kana)
+    : null;
   const city = Object.entries(cities).find(
     ([name, reading]) =>
       place.city.startsWith(name) && kana.startsWith(reading),
   );
-  const municipality =
-    city && place.city !== city[0]
-      ? `${roman(city[1])}, ${roman(kana.slice(city[1].length))}`
-      : roman(kana) || place.city;
+  const municipality = county
+    ? `${roman(county[1].slice(0, -2))}-gun, ${municipalityName(county[2], place.city)}`
+    : city && place.city !== city[0]
+      ? `${municipalityName(city[1], city[0])}, ${municipalityName(kana.slice(city[1].length), place.city.slice(city[0].length))}`
+      : municipalityName(kana, place.city) || place.city;
   return {
     localityRomaji_1: prefecture ? `Japan: ${prefecture},` : "Japan:",
     localityRomaji_2: municipality,
-    localityRomaji_3: roman(place.town_kana ?? "").replace(/chou$/, "cho") || place.town,
+    localityRomaji_3: roman(place.town_kana ?? "") || place.town,
   };
+}
+
+function municipalityName(kana: string, name: string) {
+  const endings = name.endsWith("町")
+    ? [
+        ["まち", "machi"],
+        ["ちょう", "chō"],
+      ]
+    : name.endsWith("村")
+      ? [
+          ["むら", "mura"],
+          ["そん", "son"],
+        ]
+      : name.endsWith("市")
+        ? [["し", "shi"]]
+        : name.endsWith("区")
+          ? [["く", "ku"]]
+          : [];
+  for (const [reading, suffix] of endings) {
+    if (kana.endsWith(reading) && kana.length > reading.length)
+      return `${roman(kana.slice(0, -reading.length))}-${suffix}`;
+  }
+  return roman(kana);
 }

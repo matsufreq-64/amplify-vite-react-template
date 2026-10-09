@@ -5,7 +5,11 @@ import { fetchElevation, fetchHeartRailsPlace } from "./api/location";
 import { createEvent } from "./api/workflow";
 import type { CollectingEvent, EventInput } from "./domain";
 import { Field, Notice, EventSummary } from "./ui";
-import { DEFAULT_COLLECTOR, roundCoordinate } from "./registrationDefaults";
+import {
+  getDefaultCollector,
+  roundAltitude,
+  roundCoordinate,
+} from "./registrationDefaults";
 const today = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -18,7 +22,7 @@ const empty = (): EventInput => ({
   localityRomaji_2: "",
   localityRomaji_3: "",
   date: today(),
-  collector: DEFAULT_COLLECTOR,
+  collector: getDefaultCollector(),
   method: "",
   memo: "",
 });
@@ -54,9 +58,9 @@ export default function App() {
       if (gen === generation.current)
         setForm((v) => ({
           ...v,
-          altitude: Number(altitude),
+          altitude: roundAltitude(Number(altitude)),
           localityJapaneseFull: place.placeName,
-          localityJapaneseShort: place.placeName,
+          localityJapaneseShort: place.shortPlaceName,
           localityRomaji_1: place.localityRomaji_1,
           localityRomaji_2: place.localityRomaji_2,
           localityRomaji_3: place.localityRomaji_3,
@@ -81,6 +85,7 @@ export default function App() {
         ...form,
         latitude: roundCoordinate(form.latitude),
         longitude: roundCoordinate(form.longitude),
+        altitude: roundAltitude(form.altitude),
       });
       setSaved(event);
       setForm({ ...empty(), collector: form.collector, method: form.method });
@@ -174,7 +179,7 @@ export default function App() {
                   <Field key={key} label={["緯度", "経度", "標高 / m"][i]}>
                     <input
                       type="number"
-                      step={key === "altitude" ? "any" : "0.0001"}
+                      step={key === "altitude" ? "1" : "0.0001"}
                       min={i === 0 ? -90 : i === 1 ? -180 : undefined}
                       max={i === 0 ? 90 : i === 1 ? 180 : undefined}
                       value={form[key] ?? ""}
@@ -184,7 +189,7 @@ export default function App() {
                           e.target.value === ""
                             ? undefined
                             : key === "altitude"
-                              ? Number(e.target.value)
+                              ? roundAltitude(Number(e.target.value))
                               : roundCoordinate(Number(e.target.value)),
                         )
                       }

@@ -62,6 +62,7 @@ export async function fetchHeartRailsPlace(
     ...localityLabels(nearestLocation),
     placeName:
       nearestLocation.prefecture + nearestLocation.city + nearestLocation.town,
+    shortPlaceName: nearestLocation.city + nearestLocation.town,
     placeNameKana: nearestLocation.city_kana + nearestLocation.town_kana,
   };
 }

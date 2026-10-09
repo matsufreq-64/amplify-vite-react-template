@@ -6,6 +6,7 @@ const Touroku = lazy(() => import("./Touroku"));
 const Labels = lazy(() => import("./Labels"));
 const Taxa = lazy(() => import("./Taxa"));
 const Browse = lazy(() => import("./Browse"));
+const Settings = lazy(() => import("./Settings"));
 const modes = [
   {
     id: "collection",
@@ -42,6 +43,12 @@ const modes = [
     label: "名前辞書",
     icon: "Aa",
     description: "和名・学名の入力を補助",
+  },
+  {
+    id: "settings",
+    label: "設定",
+    icon: "⚙",
+    description: "採集者名の初期値",
   },
 ] as const;
 type Mode = (typeof modes)[number]["id"];
@@ -92,19 +99,25 @@ export default function ModeRouter() {
             コレクション <span className="dot">/</span>{" "}
             {modes.find((m) => m.id === mode)?.label}
           </span>
-          {isUiTestMode ? <span className="badge">画面テスト（サインイン省略）</span> : <div>
-            <span className="user-name">
-              {user?.signInDetails?.loginId || "ログイン中"}
-            </span>
-            <button className="quiet" onClick={signOut}>
-              ログアウト
-            </button>
-          </div>}
+          {isUiTestMode ? (
+            <span className="badge">画面テスト（サインイン省略）</span>
+          ) : (
+            <div>
+              <span className="user-name">
+                {user?.signInDetails?.loginId || "ログイン中"}
+              </span>
+              <button className="quiet" onClick={signOut}>
+                ログアウト
+              </button>
+            </div>
+          )}
         </header>
         <main className="main-content">
-          {isUiTestMode && <p className="notice success ui-test-notice" role="status">
-            画面・入力操作のテスト用です。AWSのデータは保存・読込しません。
-          </p>}
+          {isUiTestMode && (
+            <p className="notice success ui-test-notice" role="status">
+              画面・入力操作のテスト用です。AWSのデータは保存・読込しません。
+            </p>
+          )}
           <Suspense
             fallback={
               <div className="panel" role="status">
@@ -118,6 +131,7 @@ export default function ModeRouter() {
             {mode === "labels" && <Labels />}
             {mode === "taxa" && <Taxa />}
             {mode === "browse" && <Browse />}
+            {mode === "settings" && <Settings />}
           </Suspense>
         </main>
         <footer>

@@ -2,8 +2,12 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   DEFAULT_COLLECTOR,
+  COLLECTOR_STORAGE_KEY,
+  getDefaultCollector,
   nextIdentification,
+  roundAltitude,
   roundCoordinate,
+  setDefaultCollector,
 } from "../src/registrationDefaults";
 import { emptyIdentification } from "../src/domain";
 test("collector defaults and four-decimal coordinate boundaries", () => {
@@ -12,6 +16,28 @@ test("collector defaults and four-decimal coordinate boundaries", () => {
   assert.equal(roundCoordinate(-136.987654), -136.9877);
   assert.equal(roundCoordinate(0), 0);
   assert.equal(roundCoordinate(undefined), undefined);
+});
+
+test("altitude rounds to whole metres and collector setting persists with fallback", () => {
+  assert.equal(roundAltitude(123.49), 123);
+  assert.equal(roundAltitude(123.5), 124);
+  assert.equal(roundAltitude(-123.5), -124);
+  assert.equal(roundAltitude(undefined), undefined);
+  const entries = new Map<string, string>();
+  const storage = {
+    getItem: (key: string) => entries.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      entries.set(key, value);
+    },
+  };
+  assert.equal(getDefaultCollector(storage), DEFAULT_COLLECTOR);
+  assert.equal(
+    setDefaultCollector("  A. Collector  ", storage),
+    "A. Collector",
+  );
+  assert.equal(entries.get(COLLECTOR_STORAGE_KEY), "A. Collector");
+  assert.equal(getDefaultCollector(storage), "A. Collector");
+  assert.throws(() => setDefaultCollector("   ", storage));
 });
 test("continuous registration carries only last successfully saved names; opt-out and unidentified reset names", () => {
   const saved = {

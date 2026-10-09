@@ -467,7 +467,7 @@ test("legacy registration mutation persists all three optional lines and still a
   }
 });
 
-test("server rounds new coordinates to four decimal places without rounding altitude", async () => {
+test("server rounds new coordinates to four decimals and altitude to whole metres", async () => {
   const result = (await call("createEvent", {
     ...eventInput,
     latitude: 35.1234567,
@@ -480,7 +480,7 @@ test("server rounds new coordinates to four decimal places without rounding alti
   })) as CollectingEvent;
   assert.equal(reloaded.latitude, 35.1235);
   assert.equal(reloaded.longitude, -136.9877);
-  assert.equal(reloaded.altitude, 10.123456);
+  assert.equal(reloaded.altitude, 10);
   await assert.rejects(
     call("createEvent", {
       ...eventInput,
