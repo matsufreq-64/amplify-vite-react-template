@@ -66,3 +66,11 @@ export async function fetchHeartRailsPlace(
     placeNameKana: nearestLocation.city_kana + nearestLocation.town_kana,
   };
 }
+
+export async function fetchMapDetails(latitude: number, longitude: number) {
+  const [altitude, place] = await Promise.allSettled([
+    fetchElevation(latitude, longitude),
+    fetchHeartRailsPlace(latitude, longitude),
+  ]);
+  return { altitude, place };
+}

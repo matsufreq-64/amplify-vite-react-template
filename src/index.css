@@ -279,6 +279,12 @@ fieldset {
 .field input::placeholder {
   color: #6c8072;
 }
+.method-choice {
+  display: grid;
+  grid-template-columns: minmax(115px, 0.8fr) minmax(0, 1fr);
+  gap: 10px;
+  min-width: 0;
+}
 .primary,
 .secondary,
 .scan-button {
@@ -698,6 +704,9 @@ i {
 }
 @media (max-width: 520px) {
   .form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .method-choice {
     grid-template-columns: minmax(0, 1fr);
   }
   .section-heading {

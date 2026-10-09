@@ -1,5 +1,6 @@
 import { generateClient } from "aws-amplify/data";
 import { isUiTestMode } from "../testMode";
+import { searchTaxonPages } from "../taxonSearch";
 import type { Schema } from "../../amplify/data/resource";
 import type {
   CollectingEvent,
@@ -117,20 +118,5 @@ export const addIdentification = (
 export const saveTaxon = (input: Omit<Taxon, "id"> & { id?: string }) =>
   call<Taxon>("saveTaxon", input, true);
 export async function searchTaxa(query: string) {
-  const results: Taxon[] = [];
-  let cursor: string | null | undefined;
-  do {
-    const page = await listPage<Taxon>("Taxon", cursor);
-    results.push(
-      ...page.items.filter((t) =>
-        `${t.japaneseName} ${t.scientificName}`
-          .toLowerCase()
-          .includes(query.toLowerCase()),
-      ),
-    );
-    cursor = page.cursor;
-  } while (cursor && results.length < 20);
-  return results
-    .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
-    .slice(0, 20);
+  return searchTaxonPages(query, (cursor) => listPage<Taxon>("Taxon", cursor));
 }

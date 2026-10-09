@@ -26,7 +26,10 @@ export default function Labels() {
     void listPage<LabelBatch>("LabelBatch")
       .then((p) => {
         if (active) {
-          setBatches(p.items);
+          setBatches((current) => [
+            ...current,
+            ...p.items.filter((batch) => !current.some((item) => item.id === batch.id)),
+          ]);
           setCursor(p.cursor);
         }
       })

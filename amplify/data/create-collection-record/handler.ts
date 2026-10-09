@@ -507,7 +507,12 @@ export async function handler(request: Request) {
           sequence: 1,
         }),
       );
-    writes.push(put("Counter", { id: `history:${row.id}`, value: 1 }));
+    writes.push(
+      put("Counter", {
+        id: `history:${row.id}`,
+        value: names.japaneseName || names.scientificName ? 1 : 0,
+      }),
+    );
     result = row;
   } else if (action === "addIdentification") {
     const specimen = owned(

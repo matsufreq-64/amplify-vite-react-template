@@ -4,7 +4,13 @@ export function csvText(rows: unknown[][]) {
   const cell = (value: unknown) => {
     const text = String(value ?? "");
     // Prevent spreadsheet programs from evaluating imported text as a formula.
-    return `"${(/^[=+@\-\t\r]/.test(text) ? "'" + text : text).replace(/"/g, '""')}"`;
+    const safe =
+      typeof value === "number" && Number.isFinite(value)
+        ? text
+        : /^[=+@\-\t\r]/.test(text)
+          ? "'" + text
+          : text;
+    return `"${safe.replace(/"/g, '""')}"`;
   };
   return "\uFEFF" + rows.map((row) => row.map(cell).join(",")).join("\r\n");
 }

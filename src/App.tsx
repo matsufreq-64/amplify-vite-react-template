@@ -1,11 +1,11 @@
 import { errorText } from "./errors";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import CollectionMap from "./components/CollectionMap";
-import { fetchElevation, fetchHeartRailsPlace } from "./api/location";
+import { fetchMapDetails } from "./api/location";
 import { createEvent } from "./api/workflow";
 import type { CollectingEvent, EventInput } from "./domain";
 import type { Position } from "./types";
-import { Field, Notice, EventSummary } from "./ui";
+import { CollectingMethodField, Field, Notice, EventSummary } from "./ui";
 import {
   getDefaultCollector,
   getUseCurrentLocation,
@@ -92,20 +92,28 @@ export default function App() {
     setLocating(true);
     setMapError("");
     try {
-      const [altitude, place] = await Promise.all([
-        fetchElevation(latitude, longitude),
-        fetchHeartRailsPlace(latitude, longitude),
-      ]);
-      if (gen === generation.current)
+      const { altitude, place } = await fetchMapDetails(latitude, longitude);
+      if (gen === generation.current) {
         setForm((v) => ({
           ...v,
-          altitude: roundAltitude(Number(altitude)),
-          localityJapaneseFull: place.placeName,
-          localityJapaneseShort: place.shortPlaceName,
-          localityRomaji_1: place.localityRomaji_1,
-          localityRomaji_2: place.localityRomaji_2,
-          localityRomaji_3: place.localityRomaji_3,
+          ...(altitude.status === "fulfilled"
+            ? { altitude: roundAltitude(altitude.value) }
+            : {}),
+          ...(place.status === "fulfilled"
+            ? {
+                localityJapaneseFull: place.value.placeName,
+                localityJapaneseShort: place.value.shortPlaceName,
+                localityRomaji_1: place.value.localityRomaji_1,
+                localityRomaji_2: place.value.localityRomaji_2,
+                localityRomaji_3: place.value.localityRomaji_3,
+              }
+            : {}),
         }));
+        const errors = [altitude, place]
+          .filter((result) => result.status === "rejected")
+          .map((result) => errorText(result.reason));
+        if (errors.length) setMapError(`${errors.join(" ")} 不足する項目は手入力できます。`);
+      }
     } catch (e) {
       if (gen === generation.current)
         setMapError(`${errorText(e)} 採集地は手入力できます。`);
@@ -262,13 +270,10 @@ export default function App() {
                 />
               </Field>
             </div>
-            <Field label="採集方法">
-              <input
-                value={form.method}
-                onChange={(e) => update("method", e.target.value)}
-                placeholder="灯火・見つけ採り など"
-              />
-            </Field>
+            <CollectingMethodField
+              value={form.method}
+              onChange={(value) => update("method", value)}
+            />
             <Field label="採集メモ">
               <textarea
                 rows={3}

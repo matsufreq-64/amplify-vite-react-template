@@ -44,7 +44,10 @@ export default function Taxa() {
     void listPage<Taxon>("Taxon")
       .then((p) => {
         if (active) {
-          setItems(p.items);
+          setItems((current) => [
+            ...current,
+            ...p.items.filter((taxon) => !current.some((item) => item.id === taxon.id)),
+          ]);
           setCursor(p.cursor);
         }
       })

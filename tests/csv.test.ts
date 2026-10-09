@@ -12,6 +12,13 @@ test("CSV round trips Japanese, commas, quotes, line breaks, and BOM", () => {
   assert.equal(parseCsv(csvText([["=SUM(1,1)"]]))[0][0], "'=SUM(1,1)");
 });
 
+test("CSV exports negative coordinates as numbers while escaping formula text", () => {
+  assert.deepEqual(
+    parseCsv(csvText([["緯度", "メモ"], [-35.0781, "-退色あり"]])),
+    [["緯度", "メモ"], ["-35.0781", "'-退色あり"]],
+  );
+});
+
 test("name dictionary accepts example and English headings, validates every row", () => {
   assert.deepEqual(parseTaxonCsv(csvText(taxonCsvExample))[0], {
     scientificName: "Graphium sarpedon",

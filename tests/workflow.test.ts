@@ -247,6 +247,21 @@ test("unidentified specimens are allowed; duplicate and wrong event registration
     }),
   );
 });
+test("the first identification of an initially unidentified specimen has sequence one", async () => {
+  const { event, batch } = await setup();
+  const specimen = (await call("registerSpecimen", {
+    eventNumber: event.eventNumber,
+    specimenNumber: batch.firstNumber,
+    identification: {},
+    requestId: "specimen-request-001",
+  })) as Specimen;
+  const identification = (await call("addIdentification", {
+    specimenId: specimen.id,
+    japaneseName: "初回同定",
+    requestId: "identification-request-001",
+  })) as { sequence: number };
+  assert.equal(identification.sequence, 1);
+});
 test("initial identification and specimen commit atomically; retry after failed transaction creates one", async () => {
   const { event, batch } = await setup();
   const p = {

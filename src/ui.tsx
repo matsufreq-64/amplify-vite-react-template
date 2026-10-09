@@ -19,6 +19,38 @@ export function Field({
     </label>
   );
 }
+export function CollectingMethodField({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="field">
+      <span>採集方法</span>
+      <div className="method-choice">
+        <select
+          aria-label="採集方法の候補"
+          value={value === "灯火" || value === "糖蜜" ? value : ""}
+          onChange={(event) => {
+            if (event.target.value) onChange(event.target.value);
+          }}
+        >
+          <option value="">候補から選ぶ</option>
+          <option value="灯火">灯火</option>
+          <option value="糖蜜">糖蜜</option>
+        </select>
+        <input
+          aria-label="採集方法を直接入力"
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder="選択または直接入力"
+        />
+      </div>
+    </div>
+  );
+}
 export function Notice({
   error,
   message,

@@ -17,7 +17,7 @@ import {
   type EventInput,
   type IdentificationInput,
 } from "./domain";
-import { EventSummary, Field, Notice } from "./ui";
+import { CollectingMethodField, EventSummary, Field, Notice } from "./ui";
 import { downloadCsv } from "./csv";
 import QrScanner from "./components/QrScanner";
 import { numberValue, parseQr } from "./domain";
@@ -136,6 +136,13 @@ export default function Browse() {
     e.preventDefault();
     const term = searchText.trim();
     void run(async () => {
+      setDetail(null);
+      setEditingEvent(null);
+      setEventDraft(null);
+      setEditingSpecimen(false);
+      setEditingIdentification(false);
+      setAudit(null);
+      setMessage("");
       setItems([]);
       setCursor(null);
       setQuery(term);
@@ -202,6 +209,11 @@ export default function Browse() {
           "この標本はまだ登録されていません。先に標本登録を行ってください。",
         );
       setModel("Specimen");
+      setItems([]);
+      setCursor(null);
+      setQuery("");
+      setSearchText("");
+      setSearchedRecords(false);
       setDetail(found);
       setEditingEvent(null);
       setEditingSpecimen(false);
@@ -611,27 +623,39 @@ export default function Browse() {
           </small>
           <fieldset className="stack" disabled={busy}>
             <div className="form-grid">
-              {eventFields.map(([key, label]) => (
-                <Field key={key} label={label}>
-                  <input
-                    type={key === "date" ? "date" : "text"}
-                    required={
-                      key === "localityJapaneseFull" ||
-                      key === "localityRomaji_1" ||
-                      key === "localityRomaji_2" ||
-                      key === "collector" ||
-                      key === "date"
-                    }
-                    value={eventDraft[key] ?? ""}
-                    onChange={(e) =>
+              {eventFields.map(([key, label]) =>
+                key === "method" ? (
+                  <CollectingMethodField
+                    key={key}
+                    value={eventDraft.method}
+                    onChange={(value) =>
                       setEventDraft(
-                        (current) =>
-                          current && { ...current, [key]: e.target.value },
+                        (current) => current && { ...current, method: value },
                       )
                     }
                   />
-                </Field>
-              ))}
+                ) : (
+                  <Field key={key} label={label}>
+                    <input
+                      type={key === "date" ? "date" : "text"}
+                      required={
+                        key === "localityJapaneseFull" ||
+                        key === "localityRomaji_1" ||
+                        key === "localityRomaji_2" ||
+                        key === "collector" ||
+                        key === "date"
+                      }
+                      value={eventDraft[key] ?? ""}
+                      onChange={(e) =>
+                        setEventDraft(
+                          (current) =>
+                            current && { ...current, [key]: e.target.value },
+                        )
+                      }
+                    />
+                  </Field>
+                ),
+              )}
             </div>
             <div className="form-grid three">
               {(["latitude", "longitude", "altitude"] as const).map((key) => (
