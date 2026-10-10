@@ -11,13 +11,13 @@ const MicroQrTrial = lazy(() => import("./MicroQrTrial"));
 const modes = [
   {
     id: "collection",
-    label: "採集イベント",
+    label: "採集イベント登録",
     icon: "01",
     description: "場所・日時・採集者を記録",
   },
   {
     id: "labels",
-    label: "ラベル印刷",
+    label: "採集イベント編集・ラベル印刷",
     icon: "02",
     description: "番号を確保してExcelを作成",
   },
@@ -29,7 +29,7 @@ const modes = [
   },
   {
     id: "browse",
-    label: "データ編集・出力",
+    label: "標本データ編集・出力",
     icon: "04",
     description: "QR検索・同定更新・CSV出力",
   },

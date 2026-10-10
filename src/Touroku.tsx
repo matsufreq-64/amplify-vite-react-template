@@ -1,5 +1,5 @@
 import { errorText } from "./errors";
-import { useEffect, useId, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import MicroQrScanner from "./components/MicroQrScanner";
 import {
   addIdentification,
@@ -51,8 +51,6 @@ export default function Touroku({
     scientificName: string;
     registeredAt: string;
   }[]>([]);
-  const lookupFormId = useId();
-  const registerFormId = useId();
   const specimenInput = useRef<HTMLInputElement>(null);
   const generation = useRef(0);
   const saving = useRef(false);
@@ -154,32 +152,40 @@ export default function Touroku({
   }
   async function submit(e: FormEvent) {
     e.preventDefault();
-    if (
-      !detail ||
-      saving.current ||
-      complete ||
-      (reidentify ? !detail.specimen : !!detail.specimen || !detail.issued)
-    )
-      return;
+    if (saving.current || complete) return;
     saving.current = true;
     setBusy(true);
     setError("");
     try {
-      if (reidentify && detail.specimen) {
-        const row = await addIdentification(detail.specimen.id, identification);
-        setDetail({ ...detail, history: [row, ...detail.history] });
+      const currentDetail = detail ?? await lookupSpecimen(
+        numberValue(specimenNumber),
+        eventNumber ? numberValue(eventNumber) : undefined,
+      );
+      if (!detail) {
+        setDetail(currentDetail);
+        setEventNumber(String(currentDetail.event.eventNumber));
+      }
+      if (reidentify && !currentDetail.specimen)
+        throw new Error("この標本はまだ登録されていません。先に標本登録を行ってください。");
+      if (!reidentify && currentDetail.specimen)
+        throw new Error("登録済みの標本です。同じラベルを別の標本に使用していないか現物を確認してください。");
+      if (!reidentify && !currentDetail.issued)
+        throw new Error("この番号の発行台帳がありません。ラベル印刷画面で発行した番号を使用してください。");
+      if (reidentify && currentDetail.specimen) {
+        const row = await addIdentification(currentDetail.specimen.id, identification);
+        setDetail({ ...currentDetail, history: [row, ...currentDetail.history] });
         setMessage(
           "新しい同定を追加しました。以前の同定履歴は保持されています。",
         );
       } else {
         const specimen = await registerSpecimen({
-          eventNumber: detail.event.eventNumber,
+          eventNumber: currentDetail.event.eventNumber,
           specimenNumber: numberValue(specimenNumber),
           sex,
           memo,
           identification,
         });
-        setDetail({ ...detail, specimen });
+        setDetail({ ...currentDetail, specimen });
         setLastSaved({
           ...identification,
           japaneseName: identification.japaneseName.trim(),
@@ -188,10 +194,10 @@ export default function Touroku({
         setRegisteredCount((count) => count + 1);
         setRecentRegistrations((current) => [{
           id: specimen.id,
-          eventNumber: detail.event.eventNumber,
+          eventNumber: currentDetail.event.eventNumber,
           specimenNumber: specimen.specimenNumber,
-          locality: detail.event.localityJapaneseFull,
-          date: detail.event.date,
+          locality: currentDetail.event.localityJapaneseFull,
+          date: currentDetail.event.date,
           japaneseName: identification.japaneseName.trim(),
           scientificName: identification.scientificName.trim(),
           registeredAt: new Date().toLocaleTimeString("ja-JP", {
@@ -211,9 +217,6 @@ export default function Touroku({
       setBusy(false);
     }
   }
-  const canSave =
-    !!detail &&
-    (reidentify ? !!detail.specimen : !detail.specimen && detail.issued);
   const displayEvent = detail?.event ?? previewEvent;
   function nextSpecimen(useCamera: boolean) {
     reset(true);
@@ -232,7 +235,7 @@ export default function Touroku({
           <p>
             {reidentify
               ? "標本を確認して、新しい同定を記録します。"
-              : "① マイクロQR・番号で確認 → ② 和名などを入力 → ③ 登録"}
+              : "① 採集イベント・標本番号を入力 → ② 標本情報を入力 → ③ 登録"}
           </p>
         </div>
         {!reidentify && (
@@ -241,7 +244,7 @@ export default function Touroku({
       </div>
       <div className="registration-grid">
         <section className="panel stack">
-          <h2>1. マイクロQR・番号で確認</h2>
+          <h2>1. 採集イベントを検索</h2>
           <button
             type="button"
             className="scan-button"
@@ -254,15 +257,7 @@ export default function Touroku({
             {camera ? "カメラを閉じる" : "▣ マイクロQRを読み取る"}
           </button>
           {camera && <MicroQrScanner onScan={scan} />}
-          <form
-            id={lookupFormId}
-            onSubmit={(e) => {
-              e.preventDefault();
-              setCamera(false);
-              reset();
-              void search(specimenNumber, eventNumber);
-            }}
-          >
+          <div>
             <fieldset disabled={busy} className="stack">
               <div className="form-grid">
                 <Field
@@ -296,7 +291,7 @@ export default function Touroku({
                 </Field>
               </div>
             </fieldset>
-          </form>
+          </div>
           {displayEvent ? (
             <div className="registration-event">
               {detail && (
@@ -328,39 +323,32 @@ export default function Touroku({
             </small>
           )}
         </section>
-        <form id={registerFormId} className="panel stack" onSubmit={submit}>
-          <h2>2. {reidentify ? "新しい同定" : "和名・標本情報"}</h2>
+        <form className="panel stack" onSubmit={submit}>
+          <h2>2. {reidentify ? "新しい同定" : "標本情報入力"}</h2>
           <fieldset
             className="stack"
-            disabled={busy || complete || (!!detail && !canSave)}
+            disabled={busy || complete}
           >
             <IdentificationFields
               value={identification}
               onChange={setIdentification}
               compact={!reidentify}
-            />
-            {!reidentify && (
-              <>
-                <div className="registration-options">
+              beforeMetadata={!reidentify && (
+                <details className="registration-sex">
+                  <summary>性別{sex !== "unexamined" ? "・選択あり" : "（任意）"}</summary>
                   <Field label="性別">
-                    <select
-                      value={sex}
-                      onChange={(e) => setSex(e.target.value)}
-                    >
+                    <select value={sex} onChange={(e) => setSex(e.target.value)}>
                       <option value="unexamined">未判定</option>
                       <option value="male">♂ オス</option>
                       <option value="female">♀ メス</option>
                       <option value="unknown">不明</option>
                     </select>
                   </Field>
-                  <button
-                    type="button"
-                    className="secondary"
-                    onClick={() => setIdentification(initialIdentification())}
-                  >
-                    名前をクリア
-                  </button>
-                </div>
+                </details>
+              )}
+            />
+            {!reidentify && (
+              <>
                 <details>
                   <summary>標本メモ（任意）{memo ? "・入力あり" : ""}</summary>
                   <Field label="標本のメモ">
@@ -385,71 +373,22 @@ export default function Touroku({
               次の標本に和名・学名を引き継ぐ
             </label>
           )}
+          <Notice error={error} message={message} />
+          {complete ? (
+            <div className="stack registration-actions">
+              {!reidentify && <button type="button" className="primary" onClick={() => nextSpecimen(true)}>次のマイクロQRを読み取る</button>}
+              <button type="button" className={reidentify ? "primary" : "secondary"} onClick={() => nextSpecimen(false)}>次の標本番号を入力</button>
+            </div>
+          ) : (
+            <>
+              <small>登録時に番号と登録状態を確認します。和名・学名が空欄なら未同定として登録します。</small>
+              <button type="submit" className="primary registration-submit" disabled={busy || !specimenNumber.trim() || (!reidentify && !eventNumber.trim()) || (reidentify && !identification.japaneseName.trim() && !identification.scientificName.trim())}>
+                {busy ? "処理しています…" : reidentify ? "同定を追加する" : "登録"}
+              </button>
+            </>
+          )}
         </form>
       </div>
-      <section className="registration-dock stack" aria-label="確認と登録">
-        <Notice error={error} message={message} />
-        {complete ? (
-          <div className="stack registration-actions">
-            {!reidentify && (
-              <button
-                type="button"
-                className="primary"
-                onClick={() => nextSpecimen(true)}
-              >
-                次のマイクロQRを読み取る
-              </button>
-            )}
-            <button
-              type="button"
-              className={reidentify ? "primary" : "secondary"}
-              onClick={() => nextSpecimen(false)}
-            >
-              次の標本番号を入力
-            </button>
-          </div>
-        ) : (
-          <>
-            <small>
-              {!detail
-                ? "先にマイクロQR・番号を確認してください。和名は先に入力できます。"
-                : !canSave
-                  ? "この標本は登録できません。確認結果をご覧ください。"
-                  : reidentify
-                    ? "以前の履歴を残して同定を追加します。"
-                    : "和名・学名が空欄なら未同定として登録します。"}
-            </small>
-            <div className="registration-button-pair">
-              <button
-                type="submit"
-                form={lookupFormId}
-                className="secondary"
-                disabled={busy}
-              >
-                採集情報・登録状態を確認
-              </button>
-              <button
-                form={registerFormId}
-                type="submit"
-                className="primary"
-                disabled={
-                  busy ||
-                  !canSave ||
-                  (reidentify &&
-                    !identification.japaneseName.trim() &&
-                    !identification.scientificName.trim())
-                }
-              >
-                {busy
-                  ? "処理しています…"
-                  : reidentify
-                    ? "同定を追加する"
-                    : "3. 確認して標本を登録"}
-              </button>
-            </div>
-          </>
-        )}
-      </section>
       {detail?.specimen && (
         <details
           className="panel registration-history"
@@ -487,19 +426,19 @@ export default function Touroku({
           {recentRegistrations.length === 0 ? (
             <p className="muted">登録すると、ここに新しい順で表示します。</p>
           ) : (
-            <ol>
-              {recentRegistrations.map((entry) => (
-                <li key={entry.id}>
-                  <div>
-                    <strong>標本 #{entry.specimenNumber}</strong>
-                    <span>採集イベント #{entry.eventNumber} · {entry.registeredAt}</span>
-                  </div>
-                  <p>{entry.japaneseName || entry.scientificName || "未同定"}</p>
-                  {entry.japaneseName && entry.scientificName && <i>{entry.scientificName}</i>}
-                  <small>{entry.locality} · {entry.date}</small>
-                </li>
-              ))}
-            </ol>
+            <div className="event-results-scroll">
+              <table className="event-results-table registration-recent-table">
+                <thead><tr><th scope="col">標本番号</th><th scope="col">イベント番号</th><th scope="col">和名・学名</th><th scope="col">採集地</th><th scope="col">採集日</th><th scope="col">登録時刻 ↓</th></tr></thead>
+                <tbody>{recentRegistrations.map((entry) => <tr key={entry.id}>
+                  <td>SP {String(entry.specimenNumber).padStart(8, "0")}</td>
+                  <td>{String(entry.eventNumber).padStart(8, "0")}</td>
+                  <td><strong>{entry.japaneseName || entry.scientificName || "未同定"}</strong>{entry.japaneseName && entry.scientificName && <small className="registration-recent-scientific"><i>{entry.scientificName}</i></small>}</td>
+                  <td>{entry.locality}</td>
+                  <td>{entry.date.replace(/-/g, "/")}</td>
+                  <td>{entry.registeredAt}</td>
+                </tr>)}</tbody>
+              </table>
+            </div>
           )}
         </section>
       )}

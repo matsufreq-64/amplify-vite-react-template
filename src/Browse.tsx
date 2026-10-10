@@ -23,6 +23,7 @@ import MicroQrScanner from "./components/MicroQrScanner";
 import { numberValue, parseQr } from "./domain";
 import { initialIdentification } from "./registrationDefaults";
 import { eventSummariesForSpecimens } from "./specimenEvents";
+import { matchesSpecimenConditions, sortSpecimensNewest, type SpecimenSearchCondition } from "./specimenSearch";
 const eventFields = [
   ["localityJapaneseFull", "採集地（正式表記）"],
   ["localityJapaneseShort", "ラベル用の短い地名"],
@@ -66,12 +67,14 @@ const eventInput = (event: CollectingEvent): EventInput => ({
   memo: event.memo,
 });
 export default function Browse() {
-  const [model, setModel] = useState("CollectionRecord");
+  const [model, setModel] = useState("Specimen");
   const [items, setItems] = useState<(CollectingEvent | Specimen)[]>([]);
   const [eventSummaries, setEventSummaries] = useState<Record<string, CollectingEvent>>({});
   const [cursor, setCursor] = useState<string | null>(null);
-  const [query, setQuery] = useState("");
-  const [searchText, setSearchText] = useState("");
+  const [conditions, setConditions] = useState<SpecimenSearchCondition[]>([
+    { id: 0, field: "locality", operator: "contains", value: "" },
+  ]);
+  const nextConditionId = useRef(1);
   const [searchedRecords, setSearchedRecords] = useState(false);
   const [lookupNumber, setLookupNumber] = useState("");
   const [lookupEventNumber, setLookupEventNumber] = useState("");
@@ -80,7 +83,6 @@ export default function Browse() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [allHistory, setAllHistory] = useState(false);
-  const [allRecords, setAllRecords] = useState(true);
   const [progress, setProgress] = useState("");
   const [message, setMessage] = useState("");
   const [editingEvent, setEditingEvent] = useState<CollectingEvent | null>(
@@ -98,26 +100,9 @@ export default function Browse() {
   const [audit, setAudit] = useState<EditHistory[] | null>(null);
   const [auditTarget, setAuditTarget] = useState("");
   const guard = useRef(false);
-  const matches = (t: CollectingEvent | Specimen, term = query) =>
-    ("eventNumber" in t
-      ? `${t.eventNumber} ${t.date} ${t.localityJapaneseFull} ${t.localityJapaneseShort} ${t.localityRomaji_1} ${t.localityRomaji_2} ${t.localityRomaji_3} ${t.collector}`
-      : `${t.specimenNumber} ${t.memo}`
-    )
-      .toLowerCase()
-      .includes(term.toLowerCase());
-  const filtered = items.filter((item) => matches(item));
-  async function exportItems() {
-    if (!allRecords) return filtered;
-    const found = new Map<string, CollectingEvent | Specimen>();
-    let next: string | null | undefined;
-    do {
-      const page = await listPage<CollectingEvent | Specimen>(model, next);
-      for (const item of page.items)
-        if (matches(item)) found.set(item.id, item);
-      next = page.cursor;
-      setProgress(`${found.size}件を取得中…`);
-    } while (next);
-    return [...found.values()];
+  const filtered = items;
+  function updateCondition(id: number, change: Partial<SpecimenSearchCondition>) {
+    setConditions((current) => current.map((condition) => condition.id === id ? { ...condition, ...change } : condition));
   }
   async function run(task: () => Promise<void>) {
     if (guard.current) return;
@@ -136,7 +121,14 @@ export default function Browse() {
   }
   function searchRecords(e: FormEvent) {
     e.preventDefault();
-    const term = searchText.trim();
+    let activeConditions = conditions.filter((condition) => condition.value.trim());
+    try {
+      if (lookupEventNumber.trim()) activeConditions = [...activeConditions, { id: -1, field: "eventNumber", operator: "equals", value: String(numberValue(lookupEventNumber)) }];
+      if (lookupNumber.trim()) activeConditions = [...activeConditions, { id: -2, field: "specimenNumber", operator: "equals", value: String(numberValue(lookupNumber)) }];
+    } catch (caught) {
+      setError(errorText(caught));
+      return;
+    }
     void run(async () => {
       setDetail(null);
       setEditingEvent(null);
@@ -147,34 +139,22 @@ export default function Browse() {
       setMessage("");
       setItems([]);
       setCursor(null);
-      setQuery(term);
-      setSearchedRecords(true);
-      if (!term) {
-        const page = await listPage<CollectingEvent | Specimen>(model);
-        if (model === "Specimen")
-          setEventSummaries(await eventSummariesForSpecimens(
-            page.items as Specimen[], eventSummaries,
-            (cursor) => listPage<CollectingEvent>("CollectionRecord", cursor),
-          ));
-        setItems(page.items);
-        setCursor(page.cursor);
-        return;
-      }
-      const found = new Map<string, CollectingEvent | Specimen>();
+      setSearchedRecords(false);
+      const found = new Map<string, Specimen>();
       let next: string | null | undefined;
       do {
-        const page = await listPage<CollectingEvent | Specimen>(model, next);
-        for (const item of page.items)
-          if (matches(item, term)) found.set(item.id, item);
+        const page = await listPage<Specimen>("Specimen", next);
+        for (const item of page.items) found.set(item.id, item);
         next = page.cursor;
-        setProgress(`${found.size}件が一致・次のページを検索中…`);
+        setProgress(`${found.size}件を取得中…`);
       } while (next);
-      if (model === "Specimen")
-        setEventSummaries(await eventSummariesForSpecimens(
-          [...found.values()] as Specimen[], eventSummaries,
-          (cursor) => listPage<CollectingEvent>("CollectionRecord", cursor),
-        ));
-      setItems([...found.values()]);
+      const summaries = await eventSummariesForSpecimens(
+        [...found.values()], eventSummaries,
+        (pageCursor) => listPage<CollectingEvent>("CollectionRecord", pageCursor),
+      );
+      setEventSummaries(summaries);
+      setItems(sortSpecimensNewest([...found.values()].filter((item) => matchesSpecimenConditions(item, summaries[item.collectingEventId], activeConditions)), summaries));
+      setSearchedRecords(true);
     });
   }
   function editEvent(event: CollectingEvent) {
@@ -223,8 +203,6 @@ export default function Browse() {
       setModel("Specimen");
       setItems([]);
       setCursor(null);
-      setQuery("");
-      setSearchText("");
       setSearchedRecords(false);
       setDetail(found);
       setEventSummaries((current) => ({ ...current, [found.event.id]: found.event }));
@@ -297,119 +275,57 @@ export default function Browse() {
       <div className="page-heading">
         <div>
           <span className="eyebrow">04 / COLLECTION RECORDS</span>
-          <h1>データ編集・出力</h1>
+          <h1>標本データ編集・出力</h1>
           <p>
             マイクロQRや番号から標本を探し、同定・登録内容の編集とCSV出力を行います。
           </p>
         </div>
       </div>
       <Notice error={error} message={message} />
-      <section className="panel stack">
-        <h2>マイクロQR・標本番号で検索</h2>
-        <div className="toolbar">
-          <button
-            type="button"
-            className="scan-button"
-            disabled={busy}
-            onClick={() => setCamera((current) => !current)}
-          >
+      <form className="panel stack event-search-panel" onSubmit={searchRecords} style={{ order: 1 }}>
+        <div><h2>標本を検索</h2><p className="muted">条件や番号を指定してデータを取得</p></div>
+        <fieldset className="stack" disabled={busy}>
+          <strong>検索条件</strong>
+          {conditions.map((condition, index) => <div className="event-search-condition" key={condition.id}>
+            {index > 0 && <span className="event-search-and">AND</span>}
+            <div className="event-search-selects">
+              <select aria-label={`条件${index + 1}の項目`} value={condition.field} onChange={(e) => {
+                const field = e.target.value as SpecimenSearchCondition["field"];
+                updateCondition(condition.id, { field, operator: field === "date" ? "equals" : "contains", value: "" });
+              }}>
+                <option value="locality">採集地</option>
+                <option value="date">採集日</option>
+                <option value="specimenNumber">標本番号</option>
+                <option value="eventNumber">イベント番号</option>
+                <option value="memo">標本メモ</option>
+              </select>
+              <select aria-label={`条件${index + 1}の一致方法`} value={condition.operator} onChange={(e) => updateCondition(condition.id, { operator: e.target.value as SpecimenSearchCondition["operator"] })}>
+                {condition.field === "date" ? <><option value="equals">一致する</option><option value="after">以降</option><option value="before">以前</option></> : <><option value="contains">含む</option><option value="equals">一致する</option></>}
+              </select>
+            </div>
+            <div className="event-search-value">
+              <input aria-label={`条件${index + 1}の検索値`} type={condition.field === "date" ? "date" : "text"} inputMode={condition.field === "specimenNumber" || condition.field === "eventNumber" ? "numeric" : undefined} value={condition.value} onChange={(e) => updateCondition(condition.id, { value: e.target.value })} placeholder={condition.field === "locality" ? "例：豊田市" : "検索する値"} />
+              {conditions.length > 1 && <button type="button" className="secondary" onClick={() => setConditions((current) => current.filter((item) => item.id !== condition.id))}>削除</button>}
+            </div>
+          </div>)}
+          <div><button type="button" className="secondary" onClick={() => setConditions((current) => [...current, { id: nextConditionId.current++, field: "locality", operator: "contains", value: "" }])}>＋ 条件追加（AND）</button></div>
+          <button type="button" className="scan-button browse-scan-button" onClick={() => setCamera((current) => !current)}>
             {camera ? "カメラを閉じる" : "▣ マイクロQRを読み取る"}
           </button>
-        </div>
-        {camera && <MicroQrScanner onScan={scan} />}
-        <form
-          className="stack"
-          onSubmit={(e) => {
-            e.preventDefault();
-            try {
-              openSpecimen(
-                numberValue(lookupNumber),
-                lookupEventNumber ? numberValue(lookupEventNumber) : undefined,
-              );
-            } catch (caught) {
-              setError(errorText(caught));
-            }
-          }}
-        >
-          <fieldset className="stack" disabled={busy}>
-            <div className="form-grid">
-              <Field label="標本番号">
-                <input
-                  inputMode="numeric"
-                  required
-                  value={lookupNumber}
-                  onChange={(e) => setLookupNumber(e.target.value)}
-                  placeholder="例：103"
-                />
-              </Field>
-              <Field label="採集イベント番号（任意）">
-                <input
-                  inputMode="numeric"
-                  value={lookupEventNumber}
-                  onChange={(e) => setLookupEventNumber(e.target.value)}
-                  placeholder="例：2"
-                />
-              </Field>
-            </div>
-            <button className="primary" type="submit">
-              標本を検索
-            </button>
-          </fieldset>
-        </form>
-      </section>
-      <section className="panel stack" style={{ order: 2 }}>
-        <div className="toolbar">
-          <div className="segmented">
-            {[
-              ["CollectionRecord", "採集イベント"],
-              ["Specimen", "標本"],
-            ].map(([key, label]) => (
-              <button
-                disabled={busy}
-                key={key}
-                className={model === key ? "selected" : ""}
-                onClick={() => {
-                  setModel(key);
-                  setItems([]);
-                  setCursor(null);
-                  setQuery("");
-                  setSearchText("");
-                  setSearchedRecords(false);
-                  setDetail(null);
-                  setEditingEvent(null);
-                  setEventDraft(null);
-                  setEditingSpecimen(false);
-                  setEditingIdentification(false);
-                  setAudit(null);
-                  setError("");
-                }}
-              >
-                {label}
-              </button>
-            ))}
+          {camera && <MicroQrScanner onScan={scan} />}
+          <div className="form-grid">
+            <Field label="採集イベント番号（任意）">
+              <input inputMode="numeric" value={lookupEventNumber} onChange={(e) => setLookupEventNumber(e.target.value)} placeholder="例：2" />
+            </Field>
+            <Field label="標本番号（任意）">
+              <input inputMode="numeric" value={lookupNumber} onChange={(e) => setLookupNumber(e.target.value)} placeholder="例：103" />
+            </Field>
           </div>
-          <span className="badge">
-            {searchedRecords ? `検索結果 ${items.length}件` : "検索前"}
-          </span>
-        </div>
-        <form className="stack" onSubmit={searchRecords}>
-          <Field
-            label={
-              model === "CollectionRecord"
-                ? "採集イベントを検索（番号・日付・採集地・採集者）"
-                : "標本を検索（標本番号・メモ）"
-            }
-          >
-            <input
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              placeholder="検索語を入力。空欄なら一覧を表示"
-            />
-          </Field>
-          <button className="secondary" type="submit" disabled={busy}>
-            {busy ? progress || "検索中…" : "検索"}
-          </button>
-        </form>
+          <button type="submit" className="primary">{busy ? progress || "検索中…" : "検索する"}</button>
+        </fieldset>
+      </form>
+      <section className="panel stack" style={{ order: searchedRecords ? 2 : 3 }}>
+        <div className="section-heading"><h2>標本の検索結果{searchedRecords ? `（${items.length}件）` : ""}</h2><span className="muted">採集日の降順・同日の場合は標本番号の降順</span></div>
         {model === "Specimen" && (
           <label className="checkbox">
             <input
@@ -420,28 +336,13 @@ export default function Browse() {
             CSVに全同定履歴を含める（オフなら現在の同定のみ）
           </label>
         )}
-        <label className="checkbox">
-          <input
-            type="checkbox"
-            checked={allRecords}
-            disabled={busy}
-            onChange={(e) => setAllRecords(e.target.checked)}
-          />
-          全ページの該当データをCSVに出力する
-        </label>
-        <small>
-          {allRecords
-            ? "検索語がある場合も全ページから探します。件数によっては時間がかかります。"
-            : "画面に読み込み済みの該当データだけを出力します。"}
-        </small>
+        <small>CSVには指定した条件・番号に一致するすべての標本を出力します。</small>
         <button
           className="secondary"
-          disabled={
-            busy || !searchedRecords || (!allRecords && !filtered.length)
-          }
+          disabled={busy || !searchedRecords || !filtered.length}
           onClick={() =>
             void run(async () => {
-              const exportRows = await exportItems();
+              const exportRows = filtered;
               if (!exportRows.length)
                 throw new Error("出力するデータがありません。");
               if (model === "CollectionRecord") {
@@ -545,11 +446,7 @@ export default function Browse() {
             })
           }
         >
-          {busy
-            ? progress || "処理しています…"
-            : allRecords
-              ? "該当する全データをCSV出力"
-              : `読み込み済みの ${filtered.length} 件をCSV出力`}
+          {busy ? progress || "処理しています…" : `${filtered.length}件をCSV出力`}
         </button>
         {!searchedRecords ? (
           <div className="empty">
@@ -558,66 +455,31 @@ export default function Browse() {
         ) : !filtered.length ? (
           <div className="empty">該当するデータはありません。</div>
         ) : null}
-        {filtered.map((item) =>
-          "eventNumber" in item ? (
-            <div key={item.id} className="browse-item">
-              <EventSummary
-                event={item}
-                actions={
-                  <>
-                    <button
-                      type="button"
-                      className="secondary"
-                      disabled={busy}
-                      onClick={() => editEvent(item)}
-                    >
-                      この採集イベントを編集
-                    </button>
-                    <button
-                      type="button"
-                      className="secondary"
-                      disabled={busy}
-                      onClick={() => showAudit("CollectionRecord", item.id)}
-                    >
-                      変更履歴
-                    </button>
-                  </>
-                }
-              />
-            </div>
-          ) : (
-            <button
-              className="list-row clickable"
-              disabled={busy}
-              key={item.id}
-              onClick={() =>
-                void run(async () => {
+        {filtered.length > 0 && <div className="event-results-scroll">
+          <table className="event-results-table specimen-results-table">
+            <thead><tr><th scope="col">標本番号</th><th scope="col">イベント番号</th><th scope="col">採集地</th><th scope="col">採集日 ↓</th><th scope="col">性別</th><th scope="col">操作</th></tr></thead>
+            <tbody>{filtered.map((item) => "eventNumber" in item ? (
+              <tr key={item.id}><td colSpan={6}><EventSummary event={item} actions={<><button type="button" className="secondary" onClick={() => editEvent(item)}>この採集イベントを編集</button><button type="button" className="secondary" onClick={() => showAudit("CollectionRecord", item.id)}>変更履歴</button></>} /></td></tr>
+            ) : (
+              <tr key={item.id} className={detail?.specimen?.id === item.id ? "selected" : ""}>
+                <td>{specimenLabel(item.specimenNumber)}</td>
+                <td>{eventSummaries[item.collectingEventId] ? String(eventSummaries[item.collectingEventId].eventNumber).padStart(8, "0") : "—"}</td>
+                <td>{eventSummaries[item.collectingEventId]?.localityJapaneseFull || "採集情報を取得できませんでした"}</td>
+                <td>{eventSummaries[item.collectingEventId]?.date.replace(/-/g, "/") || "—"}</td>
+                <td>{item.sex === "male" ? "♂ オス" : item.sex === "female" ? "♀ メス" : item.sex === "unknown" ? "不明" : "未判定"}</td>
+                <td><button type="button" className="secondary event-table-action" disabled={busy} onClick={() => void run(async () => {
                   const found = await lookupSpecimen(item.specimenNumber);
-                  if (!found.specimen)
-                    throw new Error("この標本はまだ登録されていません。");
+                  if (!found.specimen) throw new Error("この標本はまだ登録されていません。");
                   setDetail(found);
                   setEventSummaries((current) => ({ ...current, [found.event.id]: found.event }));
                   setEditingSpecimen(false);
                   setEditingIdentification(false);
                   setAudit(null);
-                })
-              }
-            >
-              <span className="specimen-result-main">
-                <strong>{specimenLabel(item.specimenNumber)}</strong>
-                {eventSummaries[item.collectingEventId] ? (
-                  <>
-                    <span>{eventSummaries[item.collectingEventId].localityJapaneseFull}</span>
-                    <time dateTime={eventSummaries[item.collectingEventId].date}>
-                      採集日：{eventSummaries[item.collectingEventId].date}
-                    </time>
-                  </>
-                ) : <span>採集情報を取得できませんでした</span>}
-              </span>
-              <span className="specimen-result-action">詳細・同定履歴を見る →</span>
-            </button>
-          ),
-        )}
+                })}>詳細</button></td>
+              </tr>
+            ))}</tbody>
+          </table>
+        </div>}
         {cursor && (
           <button
             className="secondary"
@@ -646,7 +508,7 @@ export default function Browse() {
         )}
       </section>
       {editingEvent && eventDraft && (
-        <form className="panel stack" onSubmit={saveEvent} style={{ order: 3 }}>
+        <form className="panel stack" onSubmit={saveEvent} style={{ order: 4 }}>
           <h2>採集イベント #{editingEvent.eventNumber} を編集</h2>
           <small>
             イベント番号は変更できません。発行済みラベルには発行時の採集情報が残ります。
@@ -752,7 +614,7 @@ export default function Browse() {
         </form>
       )}
       {detail && (
-        <section className="panel stack" style={{ order: 1 }}>
+        <section className="panel stack" style={{ order: searchedRecords ? 3 : 1 }}>
           <div className="section-heading">
             <h2>{specimenLabel(detail.specimen!.specimenNumber)}</h2>
             <button className="secondary" onClick={() => setDetail(null)}>
@@ -949,7 +811,7 @@ export default function Browse() {
         <section
           className="panel stack"
           aria-label="変更履歴"
-          style={{ order: 4 }}
+          style={{ order: 5 }}
         >
           <h2>変更履歴</h2>
           {!audit.length && <p>このデータの変更履歴はまだありません。</p>}

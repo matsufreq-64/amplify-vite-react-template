@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { matchesEvent, searchEventPages } from "../src/eventSearch";
+import { matchesEvent, searchEventPages, searchEventConditions } from "../src/eventSearch";
 import type { CollectingEvent } from "../src/domain";
 
 const event: CollectingEvent = {
@@ -65,4 +65,22 @@ test("search follows empty and nonmatching pages and deduplicates matching event
     results.map((item) => item.eventNumber),
     [3, 2],
   );
+});
+test("event search combines conditions and sorts by date then event number descending", async () => {
+  const results = await searchEventConditions(
+    [
+      { id: 0, field: "locality", operator: "contains", value: "名古屋" },
+      { id: 1, field: "date", operator: "before", value: "2026-09-06" },
+    ],
+    async () => ({
+      items: [
+        event,
+        { ...event, id: "same-day-higher", eventNumber: 8 },
+        { ...event, id: "older", eventNumber: 99, date: "2026-09-04" },
+        { ...event, id: "later", eventNumber: 10, date: "2026-09-07" },
+      ],
+      cursor: null,
+    }),
+  );
+  assert.deepEqual(results.map((item) => item.eventNumber), [8, 2, 99]);
 });

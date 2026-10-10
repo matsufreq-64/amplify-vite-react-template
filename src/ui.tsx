@@ -146,17 +146,18 @@ export function IdentificationFields({
   value,
   onChange,
   compact = false,
+  beforeMetadata,
 }: {
   value: IdentificationInput;
   onChange: (v: IdentificationInput) => void;
   compact?: boolean;
+  beforeMetadata?: ReactNode;
 }) {
   const update = (key: keyof IdentificationInput, text: string) =>
     onChange({ ...value, [key]: text });
   const voice = useVoice((text) => update("japaneseName", text));
   const [candidates, setCandidates] = useState<Taxon[]>([]);
   const [error, setError] = useState("");
-  const [scientificOpen, setScientificOpen] = useState(false);
   const latest = useRef(0);
   useEffect(() => {
     const generation = ++latest.current;
@@ -187,25 +188,19 @@ export function IdentificationFields({
   }, [value.japaneseName]);
   return (
     <div className="stack">
-      <div className="form-grid">
-        <Field label="和名">
-          <input
-            value={value.japaneseName}
-            onChange={(e) => update("japaneseName", e.target.value)}
-            placeholder="例：アオスジアゲハ"
-          />
-        </Field>
-        {compact ? (
-          <div className="field scientific-name-disclosure">
-            <button
-              type="button"
-              className="secondary"
-              aria-expanded={scientificOpen}
-              onClick={() => setScientificOpen((open) => !open)}
-            >
-              {scientificOpen ? "▼" : "▶"} 学名{value.scientificName ? `：${value.scientificName}` : "を入力"}
+      {compact ? (
+        <>
+          <div className="identification-name-row">
+            <Field label="和名">
+              <input value={value.japaneseName} onChange={(e) => update("japaneseName", e.target.value)} placeholder="例：アオスジアゲハ" />
+            </Field>
+            <button type="button" className="secondary" onClick={voice.start} disabled={voice.listening}>
+              {voice.listening ? "● 認識中…" : "◎ 音声入力"}
             </button>
-            {scientificOpen && (
+          </div>
+          <details className="identification-scientific">
+            <summary>学名{value.scientificName ? `：${value.scientificName}` : "を入力"}</summary>
+            <div className="identification-scientific-field">
               <Field label="学名">
                 <input
                   value={value.scientificName}
@@ -213,9 +208,15 @@ export function IdentificationFields({
                   placeholder="例：Graphium sarpedon"
                 />
               </Field>
-            )}
-          </div>
-        ) : (
+            </div>
+          </details>
+        </>
+      ) : (
+        <>
+          <div className="form-grid">
+            <Field label="和名">
+              <input value={value.japaneseName} onChange={(e) => update("japaneseName", e.target.value)} placeholder="例：アオスジアゲハ" />
+            </Field>
           <Field label="学名">
             <input
               value={value.scientificName}
@@ -223,23 +224,17 @@ export function IdentificationFields({
               placeholder="例：Graphium sarpedon"
             />
           </Field>
-        )}
-      </div>
-      <div>
-        <button
-          type="button"
-          className="secondary"
-          onClick={voice.start}
-          disabled={voice.listening}
-        >
-          {voice.listening ? "● 音声を認識しています…" : "◎ 和名を音声入力"}
-        </button>
-        {!compact && (
+          </div>
+          <div>
+            <button type="button" className="secondary" onClick={voice.start} disabled={voice.listening}>
+              {voice.listening ? "● 音声を認識しています…" : "◎ 音声入力"}
+            </button>
           <small className="inline-hint">
             認識結果を確認・修正してから保存してください。
           </small>
-        )}
-      </div>
+          </div>
+        </>
+      )}
       <Notice error={voice.error || error} />
       {candidates.length > 0 && (
         <div className="suggestions">
@@ -262,6 +257,7 @@ export function IdentificationFields({
           ))}
         </div>
       )}
+      {beforeMetadata}
       <details
         open={compact ? undefined : true}
         className={compact ? "identification-extra" : "identification-expanded"}

@@ -146,7 +146,7 @@ export default function App() {
     }
   }
   return (
-    <div className="stack">
+    <div className="stack collection-page">
       <div className="page-heading">
         <div>
           <span className="eyebrow">01 / COLLECTING EVENT</span>
@@ -167,9 +167,6 @@ export default function App() {
       <div className="two-column">
         <section className="panel map-panel">
           <h2>採集地点</h2>
-          <p className="muted">
-            地図上を選択するか、右のフォームに直接入力してください。
-          </p>
           <CollectionMap
             centerPosition={mapCenter}
             selectedPosition={
@@ -184,10 +181,10 @@ export default function App() {
           {locating && <p role="status">地点情報を取得しています…</p>}
           <Notice error={mapError} />
         </section>
-        <form className="panel stack" onSubmit={submit}>
+        <form className="panel stack collection-form" onSubmit={submit}>
           <fieldset disabled={busy} className="stack">
             <h2>採集情報</h2>
-            <Field label="採集地（正式な日本語表記） *">
+            <Field label="採集地 *">
               <input
                 required
                 value={form.localityJapaneseFull}
@@ -195,7 +192,7 @@ export default function App() {
                 placeholder="都道府県・市町村・地点名"
               />
             </Field>
-            <Field label="ラベル用の短い地名">
+            <Field label="採集地（ラベル用）">
               <input
                 value={form.localityJapaneseShort}
                 onChange={(e) =>
@@ -204,8 +201,8 @@ export default function App() {
               />
             </Field>
             <fieldset className="stack">
-              <legend>データラベル用の採集地（ローマ字・1・2行目必須）</legend>
-              <small>
+              <legend className="visually-hidden">データラベル用の採集地（ローマ字・1・2行目必須）</legend>
+              <small className="visually-hidden">
                 地図を選ぶと、国・都道府県／市区町村／細かい地名を3行に入力します。読み方や改行位置は修正できます。
               </small>
               {(
@@ -217,7 +214,7 @@ export default function App() {
               ).map((key, index) => (
                 <Field
                   key={key}
-                  label={`ラベル${index + 1}行目（ローマ字）${index < 2 ? " *" : ""}`}
+                  label={`採集地（ローマ字）ラベル${index + 1}行目${index < 2 ? " *" : ""}`}
                 >
                   <input
                     name={key}
