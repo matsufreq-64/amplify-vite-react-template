@@ -149,7 +149,7 @@ export default function Browse() {
         setProgress(`${found.size}件を取得中…`);
       } while (next);
       const summaries = await eventSummariesForSpecimens(
-        [...found.values()], eventSummaries,
+        [...found.values()], {},
         (pageCursor) => listPage<CollectingEvent>("CollectionRecord", pageCursor),
       );
       setEventSummaries(summaries);

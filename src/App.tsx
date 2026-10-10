@@ -12,6 +12,7 @@ import {
   roundAltitude,
   roundCoordinate,
 } from "./registrationDefaults";
+import { applyMapDetails, beginMapSelection } from "./mapSelection";
 const today = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -76,39 +77,23 @@ export default function App() {
     };
   }, []);
   function update<K extends keyof EventInput>(key: K, value: EventInput[K]) {
-    generation.current++;
-    setLocating(false);
+    if (["localityJapaneseFull", "localityJapaneseShort", "localityRomaji", "localityRomaji_1", "localityRomaji_2", "localityRomaji_3", "latitude", "longitude", "altitude"].includes(key)) {
+      generation.current++;
+      setLocating(false);
+    }
     setForm((v) => ({ ...v, [key]: value }));
   }
   async function selectPosition(latitude: number, longitude: number) {
     if (saving.current) return;
     selectedMapPosition.current = true;
     const gen = ++generation.current;
-    setForm((v) => ({
-      ...v,
-      latitude: roundCoordinate(latitude),
-      longitude: roundCoordinate(longitude),
-    }));
+    setForm((v) => beginMapSelection(v, latitude, longitude));
     setLocating(true);
     setMapError("");
     try {
       const { altitude, place } = await fetchMapDetails(latitude, longitude);
       if (gen === generation.current) {
-        setForm((v) => ({
-          ...v,
-          ...(altitude.status === "fulfilled"
-            ? { altitude: roundAltitude(altitude.value) }
-            : {}),
-          ...(place.status === "fulfilled"
-            ? {
-                localityJapaneseFull: place.value.placeName,
-                localityJapaneseShort: place.value.shortPlaceName,
-                localityRomaji_1: place.value.localityRomaji_1,
-                localityRomaji_2: place.value.localityRomaji_2,
-                localityRomaji_3: place.value.localityRomaji_3,
-              }
-            : {}),
-        }));
+        setForm((v) => applyMapDetails(v, { altitude, place }));
         const errors = [altitude, place]
           .filter((result) => result.status === "rejected")
           .map((result) => errorText(result.reason));
